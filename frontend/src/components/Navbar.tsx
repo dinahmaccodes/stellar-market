@@ -11,17 +11,21 @@ import {
   PenLine,
   LogOut,
   Loader2,
+  Settings,
+  UserCircle,
 } from "lucide-react";
 import axios from "axios";
 import { useState, useRef, useEffect } from "react";
 import { useWallet, truncateAddress } from "@/context/WalletContext";
 import { useSocket } from "@/context/SocketContext";
+import { useAuth } from "@/context/AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 const TOKEN_KEY = "stellarmarket_jwt";
 
 function WalletButton({ className }: { className?: string }) {
   const { address, isConnecting, error, connect, disconnect } = useWallet();
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -59,12 +63,31 @@ function WalletButton({ className }: { className?: string }) {
         </button>
         {menuOpen && (
           <div className="absolute right-0 mt-2 w-48 bg-dark-card border border-dark-border rounded-lg shadow-lg py-1 z-50">
-            <div className="px-4 py-2 text-xs text-dark-muted border-b border-dark-border break-all">
-              {address}
+            <div className="px-4 py-2 text-xs text-dark-text border-b border-dark-border break-all">
+              {user?.username || address}
             </div>
+            {user && (
+              <Link
+                href={`/profile/${user.id}`}
+                onClick={() => setMenuOpen(false)}
+                className="w-full px-4 py-2 text-sm text-dark-text hover:bg-dark-border/50 flex items-center gap-2 transition-colors"
+              >
+                <UserCircle size={14} />
+                Profile
+              </Link>
+            )}
+            <Link
+              href="/settings"
+              onClick={() => setMenuOpen(false)}
+              className="w-full px-4 py-2 text-sm text-dark-text hover:bg-dark-border/50 flex items-center gap-2 transition-colors"
+            >
+              <Settings size={14} />
+              Settings
+            </Link>
             <button
               onClick={() => {
                 disconnect();
+                logout();
                 setMenuOpen(false);
               }}
               className="w-full px-4 py-2 text-sm text-left text-dark-text hover:bg-dark-border/50 flex items-center gap-2 transition-colors"
