@@ -1,44 +1,61 @@
 import { Router, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { validate } from "../middleware/validation";
+import { asyncHandler } from "../middleware/error";
+import {
+  createApplicationSchema,
+  updateApplicationSchema,
+  updateApplicationStatusSchema,
+  getApplicationsQuerySchema,
+  getApplicationByIdParamSchema,
+  getJobByIdParamSchema,
+} from "../schemas";
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // Apply for a job
-router.post("/jobs/:jobId/apply", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const jobId = req.params.jobId as string;
-    const { coverLetter, proposedBudget } = req.body;
+router.post(
+  "/jobs/:jobId/apply",
+  authenticate,
+  validate({
+    params: getJobByIdParamSchema,
+    body: createApplicationSchema,
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { jobId } = req.params;
+    const { proposal, estimatedDuration, bidAmount } = req.body;
 
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job) {
-      res.status(404).json({ error: "Job not found." });
-      return;
+      return res.status(404).json({ error: "Job not found." });
     }
     if (job.status !== "OPEN") {
-      res.status(400).json({ error: "Job is not accepting applications." });
-      return;
+      return res
+        .status(400)
+        .json({ error: "Job is not accepting applications." });
     }
     if (job.clientId === req.userId) {
-      res.status(400).json({ error: "Cannot apply to your own job." });
-      return;
+      return res.status(400).json({ error: "Cannot apply to your own job." });
     }
 
     const existing = await prisma.application.findUnique({
       where: { jobId_freelancerId: { jobId, freelancerId: req.userId! } },
     });
     if (existing) {
-      res.status(409).json({ error: "You have already applied to this job." });
-      return;
+      return res
+        .status(409)
+        .json({ error: "You have already applied to this job." });
     }
 
     const application = await prisma.application.create({
       data: {
         jobId,
         freelancerId: req.userId!,
-        coverLetter,
-        proposedBudget: parseFloat(proposedBudget),
+        proposal,
+        estimatedDuration,
+        bidAmount,
       },
       include: {
         freelancer: { select: { id: true, username: true, avatarUrl: true } },
@@ -46,27 +63,34 @@ router.post("/jobs/:jobId/apply", authenticate, async (req: AuthRequest, res: Re
     });
 
     res.status(201).json(application);
-  } catch (error) {
-    console.error("Apply error:", error);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
+  }),
+);
 
 // Get applications for a job (paginated)
-router.get("/jobs/:jobId/applications", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const jobId = req.params.jobId as string;
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+router.get(
+  "/jobs/:jobId/applications",
+  authenticate,
+  validate({
+    params: getJobByIdParamSchema,
+    query: getApplicationsQuerySchema,
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { jobId } = req.params;
+    const { page, limit, status } = req.query as any;
     const skip = (page - 1) * limit;
 
-    const where = { jobId };
+    const where: any = { jobId };
+    if (status) {
+      where.status = status;
+    }
 
     const [applications, total] = await Promise.all([
       prisma.application.findMany({
         where,
         include: {
-          freelancer: { select: { id: true, username: true, avatarUrl: true, bio: true } },
+          freelancer: {
+            select: { id: true, username: true, avatarUrl: true, bio: true },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -81,39 +105,72 @@ router.get("/jobs/:jobId/applications", authenticate, async (req: AuthRequest, r
       page,
       totalPages: Math.ceil(total / limit),
     });
-  } catch (error) {
-    console.error("Get applications error:", error);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
+  }),
+);
+
+// Get all applications with filtering
+router.get(
+  "/",
+  authenticate,
+  validate({ query: getApplicationsQuerySchema }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { page, limit, jobId, freelancerId, status } = req.query as any;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (jobId) where.jobId = jobId;
+    if (freelancerId) where.freelancerId = freelancerId;
+    if (status) where.status = status;
+
+    const [applications, total] = await Promise.all([
+      prisma.application.findMany({
+        where,
+        include: {
+          freelancer: { select: { id: true, username: true, avatarUrl: true } },
+          job: { select: { id: true, title: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.application.count({ where }),
+    ]);
+
+    res.json({
+      data: applications,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
+  }),
+);
 
 // Update application status (accept/reject)
-router.put("/applications/:id/status", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const applicationId = req.params.id as string;
+router.put(
+  "/applications/:id/status",
+  authenticate,
+  validate({
+    params: getApplicationByIdParamSchema,
+    body: updateApplicationStatusSchema,
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
     const { status } = req.body;
 
-    if (!["ACCEPTED", "REJECTED"].includes(status)) {
-      res.status(400).json({ error: "Status must be ACCEPTED or REJECTED." });
-      return;
-    }
-
     const application = await prisma.application.findUnique({
-      where: { id: applicationId },
+      where: { id },
       include: { job: true },
     });
 
     if (!application) {
-      res.status(404).json({ error: "Application not found." });
-      return;
+      return res.status(404).json({ error: "Application not found." });
     }
     if (application.job.clientId !== req.userId) {
-      res.status(403).json({ error: "Not authorized." });
-      return;
+      return res.status(403).json({ error: "Not authorized." });
     }
 
     const updated = await prisma.application.update({
-      where: { id: applicationId },
+      where: { id },
       data: { status },
     });
 
@@ -129,10 +186,44 @@ router.put("/applications/:id/status", authenticate, async (req: AuthRequest, re
     }
 
     res.json(updated);
-  } catch (error) {
-    console.error("Update application status error:", error);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
+  }),
+);
+
+// Update application
+router.put(
+  "/applications/:id",
+  authenticate,
+  validate({
+    params: getApplicationByIdParamSchema,
+    body: updateApplicationSchema,
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const application = await prisma.application.findUnique({
+      where: { id },
+    });
+
+    if (!application) {
+      return res.status(404).json({ error: "Application not found." });
+    }
+    if (application.freelancerId !== req.userId) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to update this application." });
+    }
+
+    const updated = await prisma.application.update({
+      where: { id },
+      data: updateData,
+      include: {
+        freelancer: { select: { id: true, username: true, avatarUrl: true } },
+      },
+    });
+
+    res.json(updated);
+  }),
+);
 
 export default router;

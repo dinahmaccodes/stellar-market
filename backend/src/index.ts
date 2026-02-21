@@ -5,6 +5,7 @@ import { config } from "./config";
 import routes from "./routes";
 import { apiRateLimiter, authRateLimiter } from "./middleware/rate-limit";
 import { sanitizeInput } from "./middleware/sanitize";
+import { errorHandler } from "./middleware/error";
 
 const app = express();
 
@@ -44,15 +45,7 @@ app.use((_req, res) => {
 });
 
 // Error handler
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err.message === "Not allowed by CORS") {
-    res.status(403).json({ error: "CORS origin denied." });
-    return;
-  }
-
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error." });
-});
+app.use(errorHandler);
 
 app.listen(config.port, () => {
   console.log(`StellarMarket API running on port ${config.port}`);

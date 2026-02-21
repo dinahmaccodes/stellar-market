@@ -1,19 +1,26 @@
 import { Router, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { validate } from "../middleware/validation";
+import { asyncHandler } from "../middleware/error";
+import {
+  createMessageSchema,
+  updateMessageSchema,
+  getMessagesQuerySchema,
+  getMessageByIdParamSchema,
+  markMessageAsReadSchema,
+} from "../schemas";
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // Send a message
-router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
+router.post(
+  "/",
+  authenticate,
+  validate({ body: createMessageSchema }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
     const { receiverId, jobId, content } = req.body;
-
-    if (!receiverId || !content) {
-      res.status(400).json({ error: "Receiver and content are required." });
-      return;
-    }
 
     const message = await prisma.message.create({
       data: {
@@ -29,16 +36,15 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(message);
-  } catch (error) {
-    console.error("Send message error:", error);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
+  }),
+);
 
 // Get conversation list OR conversation history (if jobId and participantId are provided)
-router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const { jobId, participantId } = req.query;
+router.get("/",
+  authenticate,
+  validate({ query: getMessagesQuerySchema }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { jobId, participantId } = req.query as any;
 
     if (participantId) {
       const messages = await prisma.message.findMany({
@@ -97,98 +103,154 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     });
 
     res.json(Array.from(conversationsMap.values()));
-  } catch (error) {
-    console.error("Get conversations error:", error);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
+  })
+);
 
 // Get total unread message count
 router.get(
   "/unread-count",
   authenticate,
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const count = await prisma.message.count({
-        where: {
-          receiverId: req.userId!,
-          read: false,
-        },
-      });
-      res.json({ count });
-    } catch (error) {
-      console.error("Get unread count error:", error);
-      res.status(500).json({ error: "Internal server error." });
-    }
-  },
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const count = await prisma.message.count({
+      where: {
+        receiverId: req.userId!,
+        read: false,
+      },
+    });
+    res.json({ count });
+  }),
 );
 
 // Get conversation with a specific user (legacy/direct)
 router.get(
-  "/:userId",
+  "/:id",
   authenticate,
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const otherUserId = req.params.userId as string;
-      const { jobId } = req.query;
+  validate({
+    params: getMessageByIdParamSchema,
+    query: getMessagesQuerySchema.pick({ jobId: true })
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id: otherUserId } = req.params;
+    const { jobId } = req.query as any;
 
-      const messages = await prisma.message.findMany({
-        where: {
-          AND: [
-            jobId ? { jobId: jobId as string } : {},
-            {
-              OR: [
-                { senderId: req.userId!, receiverId: otherUserId },
-                { senderId: otherUserId, receiverId: req.userId! },
-              ],
-            },
-          ],
-        },
-        include: {
-          sender: { select: { id: true, username: true, avatarUrl: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      });
+    const messages = await prisma.message.findMany({
+      where: {
+        AND: [
+          jobId ? { jobId: jobId as string } : {},
+          {
+            OR: [
+              { senderId: req.userId!, receiverId: otherUserId },
+              { senderId: otherUserId, receiverId: req.userId! },
+            ],
+          },
+        ],
+      },
+      include: {
+        sender: { select: { id: true, username: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
 
-      // Mark messages as read
-      await prisma.message.updateMany({
-        where: {
-          senderId: otherUserId,
-          receiverId: req.userId!,
-          jobId: jobId ? (jobId as string) : undefined,
-          read: false,
-        },
-        data: { read: true },
-      });
+    // Mark messages as read
+    await prisma.message.updateMany({
+      where: {
+        senderId: otherUserId,
+        receiverId: req.userId!,
+        jobId: jobId ? (jobId as string) : undefined,
+        read: false,
+      },
+      data: { read: true },
+    });
 
-      res.json(messages);
-    } catch (error) {
-      console.error("Get messages error:", error);
-      res.status(500).json({ error: "Internal server error." });
-    }
-  },
+    res.json(messages);
+  }),
 );
 
 // Mark a specific message as read
 router.put(
   "/:id/read",
   authenticate,
-  async (req: AuthRequest, res: Response) => {
-    try {
-      const { id } = req.params;
-      await prisma.message.update({
-        where: {
-          id: id as string,
-          receiverId: req.userId!,
-        },
-        data: { read: true },
-      });
-      res.status(204).send();
-    } catch (error) {
-      console.error("Mark as read error:", error);
-      res.status(500).json({ error: "Internal server error." });
+  validate({
+    params: getMessageByIdParamSchema,
+    body: markMessageAsReadSchema,
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { isRead } = req.body;
+
+    await prisma.message.update({
+      where: {
+        id,
+        receiverId: req.userId!,
+      },
+      data: { read: isRead },
+    });
+    res.status(204).send();
+  }),
+);
+
+// Update a message
+router.put(
+  "/:id",
+  authenticate,
+  validate({
+    params: getMessageByIdParamSchema,
+    body: updateMessageSchema,
+  }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    const message = await prisma.message.findUnique({
+      where: { id },
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: "Message not found." });
     }
-  },
+    if (message.senderId !== req.userId) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to update this message." });
+    }
+
+    const updated = await prisma.message.update({
+      where: { id },
+      data: { content },
+      include: {
+        sender: { select: { id: true, username: true, avatarUrl: true } },
+        receiver: { select: { id: true, username: true, avatarUrl: true } },
+      },
+    });
+
+    res.json(updated);
+  }),
+);
+
+// Delete a message
+router.delete(
+  "/:id",
+  authenticate,
+  validate({ params: getMessageByIdParamSchema }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const message = await prisma.message.findUnique({
+      where: { id },
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: "Message not found." });
+    }
+    if (message.senderId !== req.userId) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to delete this message." });
+    }
+
+    await prisma.message.delete({ where: { id } });
+    res.json({ message: "Message deleted successfully." });
+  }),
 );
 
 export default router;

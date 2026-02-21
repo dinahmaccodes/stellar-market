@@ -1,0 +1,46 @@
+import { z } from "zod";
+import { paginationSchema, applicationStatusSchema } from "./common";
+
+export const createApplicationSchema = z.object({
+  jobId: z.string().uuid("Invalid job ID"),
+  proposal: z
+    .string()
+    .min(50, "Proposal must be at least 50 characters long")
+    .max(5000, "Proposal must be less than 5000 characters"),
+  estimatedDuration: z
+    .number()
+    .int()
+    .positive("Estimated duration must be a positive integer in days"),
+  bidAmount: z.number().positive("Bid amount must be a positive number"),
+});
+
+export const updateApplicationSchema = z.object({
+  proposal: z
+    .string()
+    .min(50, "Proposal must be at least 50 characters long")
+    .max(5000, "Proposal must be less than 5000 characters")
+    .optional(),
+  estimatedDuration: z
+    .number()
+    .int()
+    .positive("Estimated duration must be a positive integer in days")
+    .optional(),
+  bidAmount: z
+    .number()
+    .positive("Bid amount must be a positive number")
+    .optional(),
+});
+
+export const updateApplicationStatusSchema = z.object({
+  status: applicationStatusSchema,
+});
+
+export const getApplicationsQuerySchema = paginationSchema.extend({
+  jobId: z.string().uuid().optional(),
+  freelancerId: z.string().uuid().optional(),
+  status: applicationStatusSchema.optional(),
+});
+
+export const getApplicationByIdParamSchema = z.object({
+  id: z.string().uuid(),
+});

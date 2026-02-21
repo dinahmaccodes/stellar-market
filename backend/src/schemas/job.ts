@@ -1,0 +1,57 @@
+import { z } from "zod";
+import { paginationSchema, jobStatusSchema } from "./common";
+
+export const createJobSchema = z.object({
+  title: z
+    .string()
+    .min(5, "Title must be at least 5 characters long")
+    .max(200, "Title must be less than 200 characters"),
+  description: z
+    .string()
+    .min(20, "Description must be at least 20 characters long")
+    .max(5000, "Description must be less than 5000 characters"),
+  budget: z.number().positive("Budget must be a positive number"),
+  skills: z
+    .array(z.string())
+    .min(1, "At least one skill is required")
+    .max(10, "Cannot have more than 10 skills"),
+  deadline: z.string().datetime("Invalid deadline format"),
+});
+
+export const updateJobSchema = z.object({
+  title: z
+    .string()
+    .min(5, "Title must be at least 5 characters long")
+    .max(200, "Title must be less than 200 characters")
+    .optional(),
+  description: z
+    .string()
+    .min(20, "Description must be at least 20 characters long")
+    .max(5000, "Description must be less than 5000 characters")
+    .optional(),
+  budget: z.number().positive("Budget must be a positive number").optional(),
+  skills: z
+    .array(z.string())
+    .min(1, "At least one skill is required")
+    .max(10, "Cannot have more than 10 skills")
+    .optional(),
+  deadline: z.string().datetime("Invalid deadline format").optional(),
+  status: jobStatusSchema.optional(),
+});
+
+export const getJobsQuerySchema = paginationSchema.extend({
+  search: z.string().optional(),
+  skill: z.string().optional(),
+  status: jobStatusSchema.optional(),
+  minBudget: z.coerce.number().positive().optional(),
+  maxBudget: z.coerce.number().positive().optional(),
+  clientId: z.string().uuid().optional(),
+});
+
+export const getJobByIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export const updateJobStatusSchema = z.object({
+  status: jobStatusSchema,
+});
