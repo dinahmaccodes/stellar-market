@@ -5,10 +5,13 @@ import { authenticate, AuthRequest } from "../middleware/auth";
 const router = Router();
 const prisma = new PrismaClient();
 
-// Get all jobs with optional filters
+// Get all jobs with optional filters and pagination
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
     const { category, status, search } = req.query;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const skip = (page - 1) * limit;
 
     const where: any = {};
     if (category) where.category = category;
@@ -20,18 +23,28 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const jobs = await prisma.job.findMany({
-      where,
-      include: {
-        client: { select: { id: true, username: true, avatarUrl: true } },
-        freelancer: { select: { id: true, username: true, avatarUrl: true } },
-        milestones: true,
-        _count: { select: { applications: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [jobs, total] = await Promise.all([
+      prisma.job.findMany({
+        where,
+        include: {
+          client: { select: { id: true, username: true, avatarUrl: true } },
+          freelancer: { select: { id: true, username: true, avatarUrl: true } },
+          milestones: true,
+          _count: { select: { applications: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.job.count({ where }),
+    ]);
 
-    res.json(jobs);
+    res.json({
+      data: jobs,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error("Get jobs error:", error);
     res.status(500).json({ error: "Internal server error." });
