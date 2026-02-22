@@ -6,8 +6,10 @@ import { MessageSquare, Search, User, Briefcase } from "lucide-react";
 import axios from "axios";
 import { Conversation } from "@/types";
 import Image from "next/image";
+import { useAuth } from "@/context/AuthContext";
 
 export default function InboxPage() {
+  const { token } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,12 +17,12 @@ export default function InboxPage() {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
+        if (!token) return;
         setLoading(true);
-        const token = localStorage.getItem("token");
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/messages`,
           {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            headers: { Authorization: `Bearer ${token}` },
           },
         );
         setConversations(response.data);
@@ -32,7 +34,7 @@ export default function InboxPage() {
     };
 
     fetchConversations();
-  }, []);
+  }, [token]);
 
   const filteredConversations = conversations.filter(
     (conv) =>

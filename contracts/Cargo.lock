@@ -1284,10 +1284,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellar-market-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+ "stellar-market-dispute",
+ "stellar-market-escrow",
+ "stellar-market-reputation",
+]
+
+[[package]]
 name = "stellar-market-reputation"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
+ "stellar-market-escrow",
 ]
 
 [[package]]

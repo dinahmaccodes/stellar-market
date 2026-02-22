@@ -1,15 +1,13 @@
 [package]
-name = "stellar-market-reputation"
+name = "stellar-market-integration-tests"
 version = "0.1.0"
 edition = "2021"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
 stellar-market-escrow = { path = "../escrow" }
+stellar-market-dispute = { path = "../dispute" }
+stellar-market-reputation = { path = "../reputation" }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
-stellar-market-escrow = { path = "../escrow" }

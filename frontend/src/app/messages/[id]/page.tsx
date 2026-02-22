@@ -7,6 +7,7 @@ import axios from "axios";
 import { Message } from "@/types";
 import MessageBubble from "@/components/MessageBubble";
 import Image from "next/image";
+import { useAuth } from "@/context/AuthContext";
 
 type Job = {
   [key: string]: string;
@@ -18,6 +19,7 @@ type User = {
 
 export default function ChatThreadPage() {
   const { id } = useParams();
+  const { token } = useAuth();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -34,12 +36,12 @@ export default function ChatThreadPage() {
   useEffect(() => {
     const fetchChat = async () => {
       try {
+        if (!token) return;
         setLoading(true);
-        const token = localStorage.getItem("token");
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/messages?participantId=${otherUserId}${actualJobId ? `&jobId=${actualJobId}` : ""}`,
           {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            headers: { Authorization: `Bearer ${token}` },
           },
         );
 
@@ -61,14 +63,12 @@ export default function ChatThreadPage() {
         }
 
         // Mark all as read
-        if (token) {
-          await axios.get(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/messages/${otherUserId}${actualJobId ? `?jobId=${actualJobId}` : ""}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
-          );
-        }
+        await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/messages/${otherUserId}${actualJobId ? `?jobId=${actualJobId}` : ""}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
       } catch (err) {
         console.error("Fetch chat error:", err);
       } finally {
@@ -76,10 +76,10 @@ export default function ChatThreadPage() {
       }
     };
 
-    if (id) {
+    if (id && token) {
       fetchChat();
     }
-  }, [id, otherUserId, actualJobId]);
+  }, [id, otherUserId, actualJobId, token]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -92,8 +92,8 @@ export default function ChatThreadPage() {
     if (!newMessage.trim() || sending) return;
 
     try {
+      if (!token) return;
       setSending(true);
-      const token = localStorage.getItem("token");
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/messages`,
         {
@@ -102,7 +102,7 @@ export default function ChatThreadPage() {
           content: newMessage,
         },
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
 

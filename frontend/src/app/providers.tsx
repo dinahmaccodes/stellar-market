@@ -8,13 +8,11 @@ import { ToastProvider } from "@/components/Toast";
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WalletProvider>
-      <SocketProvider>
-        <AuthProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </AuthProvider>
-      </SocketProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </SocketProvider>
+      </AuthProvider>
     </WalletProvider>
   );
 }

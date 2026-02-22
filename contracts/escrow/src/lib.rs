@@ -64,6 +64,21 @@ fn get_job_key(job_id: u64) -> (Symbol, u64) {
     (symbol_short!("JOB"), job_id)
 }
 
+const MIN_TTL_THRESHOLD: u32 = 1_000;
+const MIN_TTL_EXTEND_TO: u32 = 10_000;
+
+fn bump_job_ttl(env: &Env, job_id: u64) {
+    env.storage()
+        .persistent()
+        .extend_ttl(&get_job_key(job_id), MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
+}
+
+fn bump_job_count_ttl(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
+}
+
 #[contract]
 pub struct EscrowContract;
 
@@ -107,7 +122,9 @@ impl EscrowContract {
         };
 
         env.storage().persistent().set(&get_job_key(job_count), &job);
+        bump_job_ttl(&env, job_count);
         env.storage().instance().set(&symbol_short!("JOB_CNT"), &job_count);
+        bump_job_count_ttl(&env);
 
         // Emit event
         env.events().publish(
@@ -127,6 +144,7 @@ impl EscrowContract {
             .persistent()
             .get(&get_job_key(job_id))
             .ok_or(EscrowError::JobNotFound)?;
+        bump_job_ttl(&env, job_id);
 
         if job.client != client {
             return Err(EscrowError::Unauthorized);
@@ -140,11 +158,70 @@ impl EscrowContract {
 
         job.status = JobStatus::Funded;
         env.storage().persistent().set(&get_job_key(job_id), &job);
+        bump_job_ttl(&env, job_id);
 
         // Emit event
         env.events().publish(
             (symbol_short!("escrow"), symbol_short!("funded")),
             (job_id, client),
+        );
+
+        Ok(())
+    }
+
+    pub fn resolve_dispute_callback(
+        env: Env,
+        job_id: u64,
+        resolved_for_client: bool,
+    ) -> Result<(), EscrowError> {
+        let mut job: Job = env
+            .storage()
+            .persistent()
+            .get(&get_job_key(job_id))
+            .ok_or(EscrowError::JobNotFound)?;
+
+        if job.status == JobStatus::Created
+            || job.status == JobStatus::Completed
+            || job.status == JobStatus::Cancelled
+        {
+            return Err(EscrowError::InvalidStatus);
+        }
+
+        let approved_amount: i128 = job
+            .milestones
+            .iter()
+            .filter(|m| m.status == MilestoneStatus::Approved)
+            .map(|m| m.amount)
+            .sum();
+
+        let remaining = job.total_amount - approved_amount;
+
+        if remaining > 0 {
+            let token_client = token::Client::new(&env, &job.token);
+            if resolved_for_client {
+                token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
+                job.status = JobStatus::Cancelled;
+            } else {
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    &job.freelancer,
+                    &remaining,
+                );
+                job.status = JobStatus::Completed;
+            }
+        } else {
+            if resolved_for_client {
+                job.status = JobStatus::Cancelled;
+            } else {
+                job.status = JobStatus::Completed;
+            }
+        }
+
+        env.storage().persistent().set(&get_job_key(job_id), &job);
+
+        env.events().publish(
+            (symbol_short!("escrow"), symbol_short!("dispute")),
+            (job_id, resolved_for_client),
         );
 
         Ok(())
@@ -164,6 +241,7 @@ impl EscrowContract {
             .persistent()
             .get(&get_job_key(job_id))
             .ok_or(EscrowError::JobNotFound)?;
+        bump_job_ttl(&env, job_id);
 
         if job.freelancer != freelancer {
             return Err(EscrowError::Unauthorized);
@@ -190,6 +268,7 @@ impl EscrowContract {
         job.milestones = milestones;
         job.status = JobStatus::InProgress;
         env.storage().persistent().set(&get_job_key(job_id), &job);
+        bump_job_ttl(&env, job_id);
 
         Ok(())
     }
@@ -208,6 +287,7 @@ impl EscrowContract {
             .persistent()
             .get(&get_job_key(job_id))
             .ok_or(EscrowError::JobNotFound)?;
+        bump_job_ttl(&env, job_id);
 
         if job.client != client {
             return Err(EscrowError::Unauthorized);
@@ -244,6 +324,7 @@ impl EscrowContract {
         }
 
         env.storage().persistent().set(&get_job_key(job_id), &job);
+        bump_job_ttl(&env, job_id);
 
         // Emit event
         env.events().publish(
@@ -263,6 +344,7 @@ impl EscrowContract {
             .persistent()
             .get(&get_job_key(job_id))
             .ok_or(EscrowError::JobNotFound)?;
+        bump_job_ttl(&env, job_id);
 
         if job.client != client {
             return Err(EscrowError::Unauthorized);
@@ -288,6 +370,7 @@ impl EscrowContract {
 
         job.status = JobStatus::Cancelled;
         env.storage().persistent().set(&get_job_key(job_id), &job);
+        bump_job_ttl(&env, job_id);
 
         // Emit event
         env.events().publish(
@@ -300,15 +383,24 @@ impl EscrowContract {
 
     /// Get job details by ID.
     pub fn get_job(env: Env, job_id: u64) -> Result<Job, EscrowError> {
-        env.storage()
+        let job: Job = env
+            .storage()
             .persistent()
             .get(&get_job_key(job_id))
-            .ok_or(EscrowError::JobNotFound)
+            .ok_or(EscrowError::JobNotFound)?;
+        bump_job_ttl(&env, job_id);
+        Ok(job)
     }
 
     /// Get total number of jobs.
     pub fn get_job_count(env: Env) -> u64 {
-        env.storage().instance().get(&symbol_short!("JOB_CNT")).unwrap_or(0)
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("JOB_CNT"))
+            .unwrap_or(0);
+        bump_job_count_ttl(&env);
+        count
     }
 }
 

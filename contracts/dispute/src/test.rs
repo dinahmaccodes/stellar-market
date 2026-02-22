@@ -1,7 +1,15 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{testutils::Address as _, Env, String};
+use soroban_sdk::{contract, contractimpl, testutils::Address as _, Env, String};
+
+#[contract]
+pub struct DummyEscrow;
+
+#[contractimpl]
+impl DummyEscrow {
+    pub fn resolve_dispute_callback(_env: Env, _job_id: u64, _resolved_for_client: bool) {}
+}
 
 #[test]
 fn test_raise_dispute() {
@@ -36,8 +44,10 @@ fn test_vote_and_resolve() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register_contract(None, DisputeContract);
-    let client = DisputeContractClient::new(&env, &contract_id);
+    let dispute_contract_id = env.register_contract(None, DisputeContract);
+    let client = DisputeContractClient::new(&env, &dispute_contract_id);
+
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
 
     let user_client = Address::generate(&env);
     let freelancer = Address::generate(&env);
@@ -54,7 +64,6 @@ fn test_vote_and_resolve() {
         &3u32,
     );
 
-    // 3 voters: 2 for freelancer, 1 for client
     client.cast_vote(
         &dispute_id,
         &voter1,
@@ -74,18 +83,20 @@ fn test_vote_and_resolve() {
         &String::from_str(&env, "Incomplete work"),
     );
 
-    let result = client.resolve_dispute(&dispute_id);
+    let result = client.resolve_dispute(&dispute_id, &escrow_contract_id);
     assert_eq!(result, DisputeStatus::ResolvedForFreelancer);
 }
 
 #[test]
-#[should_panic(expected = "NotEnoughVotes")]
+#[should_panic(expected = "Error(Contract, #5)")]
 fn test_resolve_without_enough_votes() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register_contract(None, DisputeContract);
-    let client = DisputeContractClient::new(&env, &contract_id);
+    let dispute_contract_id = env.register_contract(None, DisputeContract);
+    let client = DisputeContractClient::new(&env, &dispute_contract_id);
+
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
 
     let user_client = Address::generate(&env);
     let freelancer = Address::generate(&env);
@@ -99,7 +110,6 @@ fn test_resolve_without_enough_votes() {
         &3u32,
     );
 
-    // Only 1 vote, need 3
     let voter = Address::generate(&env);
     client.cast_vote(
         &dispute_id,
@@ -108,5 +118,5 @@ fn test_resolve_without_enough_votes() {
         &String::from_str(&env, "Reason"),
     );
 
-    client.resolve_dispute(&dispute_id); // Should panic
+    client.resolve_dispute(&dispute_id, &escrow_contract_id);
 }

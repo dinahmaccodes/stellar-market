@@ -1,38 +1,84 @@
 "use client";
 
-import {
+import React, {
   createContext,
-  useCallback,
   useContext,
-  useEffect,
-  useMemo,
   useState,
+  useEffect,
+  useCallback,
+  useMemo,
 } from "react";
 import axios from "axios";
 import { User } from "@/types";
+import { useRouter } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-const TOKEN_KEY = "stellarmarket_token";
-const USER_KEY = "stellarmarket_user";
-
-interface AuthState {
+interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   login: (token: string, user: User) => void;
+  register: (token: string, user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
 
-const AuthContext = createContext<AuthState | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const TOKEN_KEY = "stellarmarket_jwt";
+const USER_KEY = "stellarmarket_user";
+
+const setCookie = (name: string, value: string, days: number) => {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
+};
+
+const removeCookie = (name: string) => {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
-  // Restore session from localStorage on mount
+  const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    removeCookie(TOKEN_KEY);
+    setToken(null);
+    setUser(null);
+    router.push("/auth/login");
+  }, [router]);
+
+  const refreshUser = useCallback(async () => {
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+    if (!storedToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    setToken(storedToken);
+
+    try {
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      const userData = response.data.user;
+      setUser(userData);
+      localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
+      logout();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [logout]);
+
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const storedUser = localStorage.getItem(USER_KEY);
@@ -41,43 +87,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        // Still refresh to ensure user is valid and data is fresh
+        refreshUser();
       } catch {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = useCallback((newToken: string, newUser: User) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-  }, []);
-
-  const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-  }, []);
-
-  const refreshUser = useCallback(async () => {
-    if (!token) return;
-
-    try {
-      const res = await axios.get(`${API_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(res.data);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.data));
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      if (error.response?.status === 401) {
         logout();
       }
+    } else {
+      setIsLoading(false);
     }
-  }, [token, logout]);
+  }, [logout, refreshUser]);
+
+  const login = useCallback(
+    (newToken: string, newUser: User) => {
+      localStorage.setItem(TOKEN_KEY, newToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+      setCookie(TOKEN_KEY, newToken, 7);
+      setToken(newToken);
+      setUser(newUser);
+      router.push("/dashboard");
+    },
+    [router],
+  );
+
+  const register = useCallback(
+    (newToken: string, newUser: User) => {
+      localStorage.setItem(TOKEN_KEY, newToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+      setCookie(TOKEN_KEY, newToken, 7);
+      setToken(newToken);
+      setUser(newUser);
+      router.push("/dashboard");
+    },
+    [router],
+  );
 
   const updateUser = useCallback((data: Partial<User>) => {
     setUser((prev) => {
@@ -88,26 +130,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value = useMemo<AuthState>(
+  const value = useMemo(
     () => ({
       user,
       token,
       isLoading,
       login,
+      register,
       logout,
       refreshUser,
       updateUser,
     }),
-    [user, token, isLoading, login, logout, refreshUser, updateUser]
+    [user, token, isLoading, login, register, logout, refreshUser, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+};
 
-export function useAuth(): AuthState {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};

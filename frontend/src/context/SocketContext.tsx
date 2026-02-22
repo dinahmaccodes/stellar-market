@@ -9,9 +9,9 @@ import {
   useCallback,
 } from "react";
 import { io, Socket } from "socket.io-client";
+import { useAuth } from "@/context/AuthContext";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:5000";
-const TOKEN_KEY = "stellarmarket_jwt";
 
 interface SocketContextValue {
   socket: Socket | null;
@@ -24,13 +24,11 @@ const SocketContext = createContext<SocketContextValue>({
 });
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   const connect = useCallback(() => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
-
     if (!token) return;
     if (socketRef.current?.connected) return;
 
@@ -48,7 +46,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     });
 
     socketRef.current = socket;
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     connect();
@@ -57,7 +55,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [connect]);
+  }, [connect, token]);
 
   return (
     <SocketContext.Provider value={{ socket: socketRef.current, isConnected }}>
