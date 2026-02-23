@@ -15,6 +15,8 @@ pub enum EscrowError {
     MilestoneNotFound = 4,
     InsufficientFunds = 5,
     AlreadyFunded = 6,
+    InvalidDeadline = 7,
+    MilestoneDeadlineExceeded = 8,
 }
 
 #[contracttype]
@@ -44,6 +46,7 @@ pub struct Milestone {
     pub description: String,
     pub amount: i128,
     pub status: MilestoneStatus,
+    pub deadline: u64,
 }
 
 #[contracttype]
@@ -56,6 +59,7 @@ pub struct Job {
     pub total_amount: i128,
     pub status: JobStatus,
     pub milestones: Vec<Milestone>,
+    pub job_deadline: u64,
 }
 
 const JOB_COUNT: &str = "JOB_COUNT";
@@ -90,9 +94,14 @@ impl EscrowContract {
         client: Address,
         freelancer: Address,
         token: Address,
-        milestones: Vec<(String, i128)>,
+        milestones: Vec<(String, i128, u64)>,
+        job_deadline: u64,
     ) -> Result<u64, EscrowError> {
         client.require_auth();
+
+        if job_deadline <= env.ledger().timestamp() {
+            return Err(EscrowError::InvalidDeadline);
+        }
 
         let mut job_count: u64 = env.storage().instance().get(&symbol_short!("JOB_CNT")).unwrap_or(0);
         job_count += 1;
@@ -101,13 +110,20 @@ impl EscrowContract {
         let mut milestone_vec: Vec<Milestone> = Vec::new(&env);
 
         for (i, m) in milestones.iter().enumerate() {
-            let (desc, amount) = m;
+            let (desc, amount, deadline) = m;
+            if deadline <= env.ledger().timestamp() {
+                return Err(EscrowError::InvalidDeadline);
+            }
+            if deadline > job_deadline {
+                return Err(EscrowError::InvalidDeadline);
+            }
             total += amount;
             milestone_vec.push_back(Milestone {
                 id: i as u32,
                 description: desc,
                 amount,
                 status: MilestoneStatus::Pending,
+                deadline,
             });
         }
 
@@ -119,6 +135,7 @@ impl EscrowContract {
             total_amount: total,
             status: JobStatus::Created,
             milestones: milestone_vec,
+            job_deadline,
         };
 
         env.storage().persistent().set(&get_job_key(job_count), &job);
@@ -257,11 +274,16 @@ impl EscrowContract {
             return Err(EscrowError::InvalidStatus);
         }
 
+        if env.ledger().timestamp() > milestone.deadline {
+            return Err(EscrowError::MilestoneDeadlineExceeded);
+        }
+
         let updated = Milestone {
             id: milestone.id,
             description: milestone.description.clone(),
             amount: milestone.amount,
             status: MilestoneStatus::Submitted,
+            deadline: milestone.deadline,
         };
         milestones.set(milestone_id, updated);
 
@@ -313,6 +335,7 @@ impl EscrowContract {
             description: milestone.description.clone(),
             amount: milestone.amount,
             status: MilestoneStatus::Approved,
+            deadline: milestone.deadline,
         };
         milestones.set(milestone_id, updated);
         job.milestones = milestones.clone();
@@ -401,6 +424,48 @@ impl EscrowContract {
             .unwrap_or(0);
         bump_job_count_ttl(&env);
         count
+    }
+
+    /// Check if a milestone is overdue.
+    pub fn is_milestone_overdue(env: Env, job_id: u64, milestone_id: u32) -> bool {
+        if let Some(job) = env.storage().persistent().get::<_, Job>(&get_job_key(job_id)) {
+            if let Some(milestone) = job.milestones.get(milestone_id) {
+                return env.ledger().timestamp() > milestone.deadline;
+            }
+        }
+        false
+    }
+
+    /// Extend the deadline for a milestone (requires mutual agreement).
+    pub fn extend_deadline(
+        env: Env,
+        job_id: u64,
+        milestone_id: u32,
+        new_deadline: u64,
+    ) -> Result<(), EscrowError> {
+        let mut job: Job = env
+            .storage()
+            .persistent()
+            .get(&get_job_key(job_id))
+            .ok_or(EscrowError::JobNotFound)?;
+
+        job.client.require_auth();
+        job.freelancer.require_auth();
+
+        if new_deadline <= env.ledger().timestamp() {
+            return Err(EscrowError::InvalidDeadline);
+        }
+
+        let mut milestones = job.milestones.clone();
+        let mut milestone = milestones.get(milestone_id).ok_or(EscrowError::MilestoneNotFound)?;
+
+        milestone.deadline = new_deadline;
+        milestones.set(milestone_id, milestone);
+
+        job.milestones = milestones;
+        env.storage().persistent().set(&get_job_key(job_id), &job);
+
+        Ok(())
     }
 }
 
