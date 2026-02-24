@@ -42,10 +42,13 @@ export const updateJobSchema = z.object({
 export const getJobsQuerySchema = paginationSchema.extend({
   search: z.string().optional(),
   skill: z.string().optional(),
-  status: jobStatusSchema.optional(),
+  skills: z.string().optional(),
+  status: z.string().optional(),
   minBudget: z.coerce.number().positive().optional(),
   maxBudget: z.coerce.number().positive().optional(),
   clientId: z.string().uuid().optional(),
+  sort: z.enum(["newest", "oldest", "budget_high", "budget_low"]).optional(),
+  postedAfter: z.string().optional(),
 });
 
 export const getJobByIdParamSchema = z.object({
