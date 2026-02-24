@@ -104,7 +104,7 @@ export default function JobDetailPage() {
   if (!job) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold text-dark-heading mb-4">Job Not Found</h1>
+        <h1 className="text-2xl font-bold text-theme-heading mb-4">Job Not Found</h1>
         <Link href="/jobs" className="text-stellar-blue hover:underline">Return to browse jobs</Link>
       </div>
     );
@@ -116,7 +116,7 @@ export default function JobDetailPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <Link
         href="/jobs"
-        className="flex items-center gap-2 text-dark-text hover:text-dark-heading mb-8 transition-colors"
+        className="flex items-center gap-2 text-theme-text hover:text-theme-heading mb-8 transition-colors"
       >
         <ArrowLeft size={18} /> Back to Jobs
       </Link>
@@ -141,36 +141,36 @@ export default function JobDetailPage() {
             </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-dark-heading mb-4">
+          <h1 className="text-3xl font-bold text-theme-heading mb-4">
             {job.title}
           </h1>
 
           <div className="card mb-8">
-            <h2 className="text-lg font-semibold text-dark-heading mb-4">
+            <h2 className="text-lg font-semibold text-theme-heading mb-4">
               Description
             </h2>
-            <div className="text-dark-text whitespace-pre-line text-sm leading-relaxed">
+            <div className="text-theme-text whitespace-pre-line text-sm leading-relaxed">
               {job.description}
             </div>
           </div>
 
           {/* Milestones */}
           <div className="card">
-            <h2 className="text-lg font-semibold text-dark-heading mb-4">
+            <h2 className="text-lg font-semibold text-theme-heading mb-4">
               Milestones
             </h2>
             <div className="space-y-4">
               {job.milestones.map((milestone, index) => (
                 <div
                   key={milestone.id}
-                  className="flex items-start gap-4 p-4 bg-dark-bg rounded-lg border border-dark-border"
+                  className="flex items-start gap-4 p-4 bg-theme-bg rounded-lg border border-theme-border"
                 >
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-stellar-blue/20 flex items-center justify-center text-stellar-blue text-sm font-medium">
                     {index + 1}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-medium text-dark-heading">
+                      <h3 className="font-medium text-theme-heading">
                         {milestone.title}
                       </h3>
                       <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export default function JobDetailPage() {
                         <StatusBadge status={milestone.status} />
                       </div>
                     </div>
-                    <p className="text-sm text-dark-text mb-3">
+                    <p className="text-sm text-theme-text mb-3">
                       {milestone.description}
                     </p>
                     
@@ -207,11 +207,11 @@ export default function JobDetailPage() {
           <div className="card">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="text-stellar-blue" size={20} />
-              <span className="text-2xl font-bold text-dark-heading">
+              <span className="text-2xl font-bold text-theme-heading">
                 {job.budget.toLocaleString()} XLM
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-dark-text mb-4">
+            <div className="flex items-center gap-2 text-sm text-theme-text mb-4">
               <Clock size={14} />
               Posted {new Date(job.createdAt).toLocaleDateString()}
             </div>
@@ -252,21 +252,21 @@ export default function JobDetailPage() {
           </div>
 
           <div className="card">
-            <h3 className="font-semibold text-dark-heading mb-4">
+            <h3 className="font-semibold text-theme-heading mb-4">
               About the Client
             </h3>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-stellar-blue to-stellar-purple" />
               <div>
-                <div className="font-medium text-dark-heading">
+                <div className="font-medium text-theme-heading">
                   {job.client.username}
                 </div>
-                <div className="text-xs text-dark-text">
+                <div className="text-xs text-theme-text">
                   {job.client.walletAddress.slice(0, 8)}...{job.client.walletAddress.slice(-8)}
                 </div>
               </div>
             </div>
-            <p className="text-sm text-dark-text mb-4">{job.client.bio}</p>
+            <p className="text-sm text-theme-text mb-4">{job.client.bio}</p>
             <Link
               href={`/messages/${job.client.id}-${job.id}`}
               className="btn-secondary w-full flex items-center justify-center gap-2"

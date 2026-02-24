@@ -70,12 +70,12 @@ export default function AuthForm({ type }: AuthFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md p-8 bg-dark-card border border-dark-border rounded-2xl shadow-xl">
+    <div className="w-full max-w-md p-8 bg-theme-card border border-theme-border rounded-2xl shadow-xl">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-dark-heading mb-2">
+        <h1 className="text-3xl font-bold text-theme-heading mb-2">
           {type === "login" ? "Welcome Back" : "Create Account"}
         </h1>
-        <p className="text-dark-muted">
+        <p className="text-theme-text">
           {type === "login"
             ? "Sign in to access your stellar dashboard"
             : "Join the future of decentralized freelance work"}
@@ -86,13 +86,13 @@ export default function AuthForm({ type }: AuthFormProps) {
         {type === "register" && (
           <>
             <div>
-              <label className="block text-sm font-medium text-dark-text mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 Username
               </label>
               <div className="relative">
                 <UserIcon
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text"
                 />
                 <input
                   type="text"
@@ -100,21 +100,21 @@ export default function AuthForm({ type }: AuthFormProps) {
                   required
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2 bg-dark-bg border border-dark-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-dark-text"
+                  className="w-full pl-10 pr-4 py-2 bg-theme-bg border border-theme-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-theme-text"
                   placeholder="johndoe"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-dark-text mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 Role
               </label>
               <select
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-dark-text"
+                className="w-full px-4 py-2 bg-theme-bg border border-theme-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-theme-text"
               >
                 <option value="FREELANCER">Freelancer</option>
                 <option value="CLIENT">Client</option>
@@ -122,20 +122,20 @@ export default function AuthForm({ type }: AuthFormProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-dark-text mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 Wallet Address
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Wallet
                     size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text"
                   />
                   <input
                     type="text"
                     readOnly
                     value={address || ""}
-                    className="w-full pl-10 pr-4 py-2 bg-dark-bg border border-dark-border rounded-lg text-dark-muted cursor-not-allowed text-sm"
+                    className="w-full pl-10 pr-4 py-2 bg-theme-bg border border-theme-border rounded-lg text-theme-text cursor-not-allowed text-sm"
                     placeholder="Connect wallet..."
                   />
                 </div>
@@ -157,13 +157,13 @@ export default function AuthForm({ type }: AuthFormProps) {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">
+          <label className="block text-sm font-medium text-theme-text mb-1">
             Email Address
           </label>
           <div className="relative">
             <Mail
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text"
             />
             <input
               type="email"
@@ -171,20 +171,20 @@ export default function AuthForm({ type }: AuthFormProps) {
               required
               value={formData.email}
               onChange={handleChange}
-              className="w-full pl-10 pr-4 py-2 bg-dark-bg border border-dark-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-dark-text"
+              className="w-full pl-10 pr-4 py-2 bg-theme-bg border border-theme-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-theme-text"
               placeholder="name@example.com"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-dark-text mb-1">
+          <label className="block text-sm font-medium text-theme-text mb-1">
             Password
           </label>
           <div className="relative">
             <Lock
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text"
             />
             <input
               type="password"
@@ -192,7 +192,7 @@ export default function AuthForm({ type }: AuthFormProps) {
               required
               value={formData.password}
               onChange={handleChange}
-              className="w-full pl-10 pr-4 py-2 bg-dark-bg border border-dark-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-dark-text"
+              className="w-full pl-10 pr-4 py-2 bg-theme-bg border border-theme-border rounded-lg focus:ring-2 focus:ring-stellar-blue outline-none transition-all text-theme-text"
               placeholder="••••••••"
             />
           </div>
@@ -219,8 +219,8 @@ export default function AuthForm({ type }: AuthFormProps) {
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-dark-border text-center">
-        <p className="text-dark-muted">
+      <div className="mt-8 pt-6 border-t border-theme-border text-center">
+        <p className="text-theme-text">
           {type === "login" ? (
             <>
               Don&apos;t have an account?{" "}

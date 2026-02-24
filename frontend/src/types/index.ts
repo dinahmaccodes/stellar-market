@@ -6,6 +6,8 @@ export interface User {
   bio?: string;
   avatarUrl?: string;
   role: "CLIENT" | "FREELANCER";
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface Milestone {
@@ -40,11 +42,25 @@ export interface Application {
   id: string;
   jobId: string;
   freelancerId: string;
-  coverLetter: string;
-  proposedBudget: number;
+  proposal: string;
+  bidAmount: number;
+  estimatedDuration: string;
   status: "PENDING" | "ACCEPTED" | "REJECTED";
   freelancer: User;
   createdAt: string;
+}
+
+export interface ServiceListing {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  freelancerId: string;
+  freelancer: User;
+  skills: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Message {
@@ -81,6 +97,7 @@ export interface UserProfile extends User {
   freelancerJobs: Job[];
   averageRating: number;
   reviewCount: number;
+  services: ServiceListing[];
   createdAt: string;
 }
 

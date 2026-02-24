@@ -141,11 +141,11 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <Settings size={28} className="text-stellar-blue" />
-          <h1 className="text-3xl font-bold text-dark-heading">Settings</h1>
+          <h1 className="text-3xl font-bold text-theme-heading">Settings</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-6">
-          <h2 className="text-xl font-semibold text-dark-heading">Edit Profile</h2>
+          <h2 className="text-xl font-semibold text-theme-heading">Edit Profile</h2>
 
           {errors.general && (
             <div className="bg-red-900/30 border border-red-700 text-red-200 rounded-lg px-4 py-3 text-sm">
@@ -155,7 +155,7 @@ export default function SettingsPage() {
 
           {/* Username */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-dark-heading mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-theme-heading mb-2">
               <span className="flex items-center gap-2">
                 <User size={14} />
                 Username
@@ -179,7 +179,7 @@ export default function SettingsPage() {
 
           {/* Email */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-dark-heading mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-theme-heading mb-2">
               <span className="flex items-center gap-2">
                 <Mail size={14} />
                 Email
@@ -203,7 +203,7 @@ export default function SettingsPage() {
 
           {/* Bio */}
           <div>
-            <label htmlFor="bio" className="block text-sm font-medium text-dark-heading mb-2">
+            <label htmlFor="bio" className="block text-sm font-medium text-theme-heading mb-2">
               <span className="flex items-center gap-2">
                 <FileText size={14} />
                 Bio
@@ -226,7 +226,7 @@ export default function SettingsPage() {
               ) : (
                 <span />
               )}
-              <span id="bio-count" className="text-dark-text text-xs">
+              <span id="bio-count" className="text-theme-text text-xs">
                 {bio.length}/500
               </span>
             </div>
@@ -234,7 +234,7 @@ export default function SettingsPage() {
 
           {/* Avatar URL */}
           <div>
-            <label htmlFor="avatarUrl" className="block text-sm font-medium text-dark-heading mb-2">
+            <label htmlFor="avatarUrl" className="block text-sm font-medium text-theme-heading mb-2">
               <span className="flex items-center gap-2">
                 <LinkIcon size={14} />
                 Avatar URL
@@ -259,19 +259,19 @@ export default function SettingsPage() {
                 <img
                   src={avatarUrl}
                   alt="Avatar preview"
-                  className="w-12 h-12 rounded-full object-cover border border-dark-border"
+                  className="w-12 h-12 rounded-full object-cover border border-theme-border"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-                <span className="text-dark-text text-xs">Preview</span>
+                <span className="text-theme-text text-xs">Preview</span>
               </div>
             )}
           </div>
 
           {/* Role Toggle */}
           <div>
-            <label className="block text-sm font-medium text-dark-heading mb-3">
+            <label className="block text-sm font-medium text-theme-heading mb-3">
               Role
             </label>
             <div className="flex gap-3">
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                 onClick={() => setRole("CLIENT")}
                 className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition-colors ${role === "CLIENT"
                     ? "bg-stellar-blue/20 border-stellar-blue text-stellar-blue"
-                    : "bg-dark-card border-dark-border text-dark-text hover:border-dark-text"
+                    : "bg-theme-card border-theme-border text-theme-text hover:border-theme-text"
                   }`}
                 aria-pressed={role === "CLIENT"}
               >
@@ -291,7 +291,7 @@ export default function SettingsPage() {
                 onClick={() => setRole("FREELANCER")}
                 className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition-colors ${role === "FREELANCER"
                     ? "bg-stellar-purple/20 border-stellar-purple text-stellar-purple"
-                    : "bg-dark-card border-dark-border text-dark-text hover:border-dark-text"
+                    : "bg-theme-card border-theme-border text-theme-text hover:border-theme-text"
                   }`}
                 aria-pressed={role === "FREELANCER"}
               >
