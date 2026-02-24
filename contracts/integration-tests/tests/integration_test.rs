@@ -186,6 +186,7 @@ fn test_dispute_resolved_for_freelancer() {
         &3,
         &0_i128,
         &token_address,
+        &0_i128,
     );
 
     let dispute = dispute_client.get_dispute(&dispute_id_val);
@@ -284,6 +285,7 @@ fn test_dispute_resolved_for_client() {
         &3,
         &0_i128,
         &token_address,
+        &0_i128,
     );
 
     // Voters side with client
@@ -523,6 +525,7 @@ fn test_duplicate_vote_on_dispute_fails() {
         &3,
         &0_i128,
         &token_address,
+        &0_i128,
     );
 
     let voter = Address::generate(&env);
@@ -583,6 +586,7 @@ fn test_dispute_with_all_milestones_approved() {
         &3,
         &0_i128,
         &token_address,
+        &0_i128,
     );
 
     // Vote and resolve for freelancer (so they get the funds)

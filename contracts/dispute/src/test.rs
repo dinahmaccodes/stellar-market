@@ -430,7 +430,7 @@ fn test_losing_voter_cannot_claim() {
 #[test]
 #[should_panic(expected = "Error(Contract, #12)")]
 fn test_claim_before_resolution_fails() {
-    let (env, contract_id, token_id, _admin, escrow_id) = setup_env();
+    let (env, contract_id, token_id, _admin, _escrow_id) = setup_env();
     let client = DisputeContractClient::new(&env, &contract_id);
 
     let user_client = Address::generate(&env);
