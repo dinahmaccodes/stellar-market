@@ -33,3 +33,7 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: passwordSchema,
 });
+
+export const verifyEmailParamSchema = z.object({
+  token: z.string().min(1, "Verification token is required"),
+});

@@ -16,6 +16,10 @@ pub enum DisputeError {
     NotEnoughVotes = 5,
     InvalidParty = 6,
     AlreadyResolved = 7,
+    AppealWindowExpired = 8,
+    MaxAppealsReached = 9,
+    NotLosingParty = 10,
+    CannotAppealBeforeResolution = 11,
 }
 
 #[contracttype]
@@ -25,6 +29,8 @@ pub enum DisputeStatus {
     Voting,
     ResolvedForClient,
     ResolvedForFreelancer,
+    Appealed,
+    FinalResolution,
 }
 
 #[contracttype]
@@ -57,6 +63,10 @@ pub struct Dispute {
     pub votes_for_freelancer: u32,
     pub min_votes: u32,
     pub created_at: u64,
+    pub appeal_count: u32,
+    pub max_appeals: u32,
+    pub appeal_deadline: u64,
+    pub resolution_timestamp: u64,
 }
 
 #[contracttype]
@@ -135,6 +145,10 @@ impl DisputeContract {
             votes_for_freelancer: 0,
             min_votes: if min_votes < 3 { 3 } else { min_votes },
             created_at: env.ledger().timestamp(),
+            appeal_count: 0,
+            max_appeals: 2,
+            appeal_deadline: 0,
+            resolution_timestamp: 0,
         };
 
         env.storage()
@@ -176,7 +190,9 @@ impl DisputeContract {
             .ok_or(DisputeError::DisputeNotFound)?;
         bump_dispute_ttl(&env, dispute_id);
 
-        if dispute.status != DisputeStatus::Open && dispute.status != DisputeStatus::Voting {
+        if dispute.status != DisputeStatus::Open 
+            && dispute.status != DisputeStatus::Voting 
+            && dispute.status != DisputeStatus::Appealed {
             return Err(DisputeError::VotingClosed);
         }
 
@@ -244,35 +260,133 @@ impl DisputeContract {
             .ok_or(DisputeError::DisputeNotFound)?;
         bump_dispute_ttl(&env, dispute_id);
 
-        if dispute.status == DisputeStatus::ResolvedForClient
-            || dispute.status == DisputeStatus::ResolvedForFreelancer
-        {
+        if dispute.status == DisputeStatus::FinalResolution {
             return Err(DisputeError::AlreadyResolved);
         }
 
         let total_votes = dispute.votes_for_client + dispute.votes_for_freelancer;
-        if total_votes < dispute.min_votes {
+        
+        // Calculate required votes based on appeal count (doubles each round)
+        let required_votes = dispute.min_votes * (2_u32.pow(dispute.appeal_count));
+        
+        if total_votes < required_votes {
             return Err(DisputeError::NotEnoughVotes);
         }
 
-        dispute.status = if dispute.votes_for_client >= dispute.votes_for_freelancer {
-            DisputeStatus::ResolvedForClient
+        let resolved_for_client = dispute.votes_for_client >= dispute.votes_for_freelancer;
+        
+        // Check if this is the final resolution
+        let is_final = dispute.appeal_count >= dispute.max_appeals;
+        
+        if is_final {
+            dispute.status = DisputeStatus::FinalResolution;
         } else {
-            DisputeStatus::ResolvedForFreelancer
-        };
+            dispute.status = if resolved_for_client {
+                DisputeStatus::ResolvedForClient
+            } else {
+                DisputeStatus::ResolvedForFreelancer
+            };
+        }
+
+        // Set resolution timestamp and appeal deadline (e.g., 100 ledgers = ~8.3 minutes)
+        dispute.resolution_timestamp = env.ledger().timestamp();
+        dispute.appeal_deadline = env.ledger().sequence() as u64 + 100;
 
         let resolved_status = dispute.status.clone();
-        let resolved_for_client = resolved_status == DisputeStatus::ResolvedForClient;
 
-        let _ = env.invoke_contract::<()>(
-            &escrow,
-            &Symbol::new(&env, "resolve_dispute_callback"),
-            vec![
-                &env,
-                dispute.job_id.into_val(&env),
-                resolved_for_client.into_val(&env),
-            ],
-        );
+        // Only invoke escrow callback for final resolution
+        if is_final {
+            let _ = env.invoke_contract::<()>(
+                &escrow,
+                &Symbol::new(&env, "resolve_dispute_callback"),
+                vec![
+                    &env,
+                    dispute.job_id.into_val(&env),
+                    resolved_for_client.into_val(&env),
+                ],
+            );
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dispute(dispute_id), &dispute);
+        bump_dispute_ttl(&env, dispute_id);
+
+        // Emit different events for first resolution vs final resolution
+        if is_final {
+            env.events().publish(
+                (symbol_short!("dispute"), symbol_short!("final")),
+                (dispute_id, resolved_status.clone()),
+            );
+        } else {
+            env.events().publish(
+                (symbol_short!("dispute"), symbol_short!("resolved")),
+                (dispute_id, resolved_status.clone()),
+            );
+        }
+
+        Ok(resolved_status)
+    }
+
+    /// Raise an appeal on a resolved dispute. Only the losing party can appeal.
+    pub fn raise_appeal(
+        env: Env,
+        dispute_id: u64,
+        appellant: Address,
+    ) -> Result<(), DisputeError> {
+        appellant.require_auth();
+
+        let mut dispute: Dispute = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Dispute(dispute_id))
+            .ok_or(DisputeError::DisputeNotFound)?;
+        bump_dispute_ttl(&env, dispute_id);
+
+        // Check if max appeals reached first
+        if dispute.appeal_count >= dispute.max_appeals {
+            return Err(DisputeError::MaxAppealsReached);
+        }
+
+        // Check if dispute has been resolved (but not final)
+        if dispute.status != DisputeStatus::ResolvedForClient 
+            && dispute.status != DisputeStatus::ResolvedForFreelancer 
+            && dispute.status != DisputeStatus::FinalResolution {
+            return Err(DisputeError::CannotAppealBeforeResolution);
+        }
+
+        // Cannot appeal final resolution
+        if dispute.status == DisputeStatus::FinalResolution {
+            return Err(DisputeError::MaxAppealsReached);
+        }
+
+        // Check if appeal window has expired
+        if env.ledger().sequence() as u64 > dispute.appeal_deadline {
+            return Err(DisputeError::AppealWindowExpired);
+        }
+
+        // Verify appellant is the losing party
+        let is_losing_party = match dispute.status {
+            DisputeStatus::ResolvedForClient => appellant == dispute.freelancer,
+            DisputeStatus::ResolvedForFreelancer => appellant == dispute.client,
+            _ => false,
+        };
+
+        if !is_losing_party {
+            return Err(DisputeError::NotLosingParty);
+        }
+
+        // Increment appeal count and reset voting
+        dispute.appeal_count += 1;
+        dispute.status = DisputeStatus::Appealed;
+        dispute.votes_for_client = 0;
+        dispute.votes_for_freelancer = 0;
+
+        // Clear previous votes
+        env.storage()
+            .persistent()
+            .set(&DataKey::Votes(dispute_id), &Vec::<Vote>::new(&env));
+        bump_votes_ttl(&env, dispute_id);
 
         env.storage()
             .persistent()
@@ -281,11 +395,11 @@ impl DisputeContract {
 
         // Emit event
         env.events().publish(
-            (symbol_short!("dispute"), symbol_short!("resolved")),
-            (dispute_id, dispute.status.clone()),
+            (symbol_short!("dispute"), symbol_short!("appealed")),
+            (dispute_id, appellant, dispute.appeal_count),
         );
 
-        Ok(dispute.status)
+        Ok(())
     }
 
     /// Get dispute details.

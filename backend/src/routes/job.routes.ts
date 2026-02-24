@@ -18,37 +18,52 @@ const prisma = new PrismaClient();
 router.get("/",
   validate({ query: getJobsQuerySchema }),
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page, limit, search, skill, status, minBudget, maxBudget, clientId } = req.query as any;
+    const { page, limit, search, skill, skills, status, minBudget, maxBudget, clientId, sort, postedAfter } = req.query as any;
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
         { title: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
       ];
     }
-    
-    if (skill) {
-      where.skills = {
-        has: skill,
-      };
+
+    if (skills) {
+      const skillList = (skills as string).split(",").map((s: string) => s.trim());
+      where.skills = { hasSome: skillList };
+    } else if (skill) {
+      where.skills = { has: skill };
     }
-    
+
     if (status) {
-      where.status = status;
+      const statusList = (status as string).split(",").map((s: string) => s.trim());
+      if (statusList.length === 1) {
+        where.status = statusList[0];
+      } else {
+        where.status = { in: statusList };
+      }
     }
-    
+
     if (minBudget || maxBudget) {
       where.budget = {};
       if (minBudget) where.budget.gte = minBudget;
       if (maxBudget) where.budget.lte = maxBudget;
     }
-    
+
     if (clientId) {
       where.clientId = clientId;
     }
+
+    if (postedAfter) {
+      where.createdAt = { gte: new Date(postedAfter) };
+    }
+
+    let orderBy: any = { createdAt: "desc" };
+    if (sort === "oldest") orderBy = { createdAt: "asc" };
+    else if (sort === "budget_high") orderBy = { budget: "desc" };
+    else if (sort === "budget_low") orderBy = { budget: "asc" };
 
     const [jobs, total] = await Promise.all([
       prisma.job.findMany({
@@ -59,7 +74,7 @@ router.get("/",
           milestones: true,
           _count: { select: { applications: true } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip,
         take: limit,
       }),

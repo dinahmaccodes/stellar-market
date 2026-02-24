@@ -4,11 +4,22 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
 import { validate } from "../middleware/validation";
+import { authenticate, AuthRequest } from "../middleware/auth";
 import { asyncHandler } from "../middleware/error";
-import { registerSchema, loginSchema } from "../schemas";
+import {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailParamSchema,
+} from "../schemas";
+import { generateToken, hashToken } from "../utils/token";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/email";
 
 const router = Router();
 const prisma = new PrismaClient();
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 // Register a new user
 router.post(
@@ -92,6 +103,132 @@ router.post(
       },
       token,
     });
+  }),
+);
+
+// Forgot password — generates hashed reset token, sends email
+router.post(
+  "/forgot-password",
+  validate({ body: forgotPasswordSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.json({ message: "If the email exists, a reset link has been sent." });
+    }
+
+    const rawToken = generateToken();
+    const hashed = hashToken(rawToken);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: hashed,
+        passwordResetExpiry: new Date(Date.now() + RESET_TOKEN_EXPIRY_MS),
+      },
+    });
+
+    await sendPasswordResetEmail(email, rawToken);
+
+    res.json({ message: "If the email exists, a reset link has been sent." });
+  }),
+);
+
+// Reset password — validates token + expiry, updates password
+router.post(
+  "/reset-password",
+  validate({ body: resetPasswordSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { token, password } = req.body;
+
+    const hashed = hashToken(token);
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashed,
+        passwordResetExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired reset token." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+      },
+    });
+
+    res.json({ message: "Password has been reset successfully." });
+  }),
+);
+
+// Send verification email — requires authentication
+router.post(
+  "/send-verification",
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+    });
+
+    if (!user || !user.email) {
+      return res.status(400).json({ error: "No email address on account." });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({ error: "Email is already verified." });
+    }
+
+    const rawToken = generateToken();
+    const hashed = hashToken(rawToken);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerificationToken: hashed },
+    });
+
+    await sendVerificationEmail(user.email, rawToken);
+
+    res.json({ message: "Verification email sent." });
+  }),
+);
+
+// Verify email — validates token and marks email as verified
+router.get(
+  "/verify-email/:token",
+  validate({ params: verifyEmailParamSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.params;
+
+    const hashed = hashToken(token);
+
+    const user = await prisma.user.findFirst({
+      where: { emailVerificationToken: hashed },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid verification token." });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerificationToken: null,
+      },
+    });
+
+    res.json({ message: "Email verified successfully." });
   }),
 );
 

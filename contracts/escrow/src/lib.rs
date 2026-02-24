@@ -17,6 +17,9 @@ pub enum EscrowError {
     AlreadyFunded = 6,
     InvalidDeadline = 7,
     MilestoneDeadlineExceeded = 8,
+    HasPendingMilestone = 9,
+    NoRefundDue = 10,
+    GracePeriodNotMet = 11,
 }
 
 #[contracttype]
@@ -60,6 +63,7 @@ pub struct Job {
     pub status: JobStatus,
     pub milestones: Vec<Milestone>,
     pub job_deadline: u64,
+    pub auto_refund_after: u64,
 }
 
 const JOB_COUNT: &str = "JOB_COUNT";
@@ -96,6 +100,7 @@ impl EscrowContract {
         token: Address,
         milestones: Vec<(String, i128, u64)>,
         job_deadline: u64,
+        auto_refund_after: u64,
     ) -> Result<u64, EscrowError> {
         client.require_auth();
 
@@ -136,6 +141,7 @@ impl EscrowContract {
             status: JobStatus::Created,
             milestones: milestone_vec,
             job_deadline,
+            auto_refund_after,
         };
 
         env.storage().persistent().set(&get_job_key(job_count), &job);
@@ -399,6 +405,73 @@ impl EscrowContract {
         env.events().publish(
             (symbol_short!("escrow"), symbol_short!("cancelled")),
             (job_id, client),
+        );
+
+        Ok(())
+    }
+
+    /// Claim a refund for an abandoned job past the deadline + grace period.
+    /// Only the client can call this. Refund excludes amounts for already-approved milestones.
+    /// Fails if the freelancer has a pending (submitted) milestone awaiting approval.
+    pub fn claim_refund(env: Env, job_id: u64, client: Address) -> Result<(), EscrowError> {
+        client.require_auth();
+
+        let mut job: Job = env
+            .storage()
+            .persistent()
+            .get(&get_job_key(job_id))
+            .ok_or(EscrowError::JobNotFound)?;
+        bump_job_ttl(&env, job_id);
+
+        if job.client != client {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        // Only allow refund for Funded or InProgress jobs
+        if job.status != JobStatus::Funded && job.status != JobStatus::InProgress {
+            return Err(EscrowError::InvalidStatus);
+        }
+
+        // Ensure the grace period after deadline has elapsed
+        let refund_eligible_at = job.job_deadline + job.auto_refund_after;
+        if env.ledger().timestamp() < refund_eligible_at {
+            return Err(EscrowError::GracePeriodNotMet);
+        }
+
+        // Prevent refund if freelancer has an active pending milestone submission
+        let has_pending = job
+            .milestones
+            .iter()
+            .any(|m| m.status == MilestoneStatus::Submitted);
+        if has_pending {
+            return Err(EscrowError::HasPendingMilestone);
+        }
+
+        // Calculate refund: total minus already-approved milestone amounts
+        let approved_amount: i128 = job
+            .milestones
+            .iter()
+            .filter(|m| m.status == MilestoneStatus::Approved)
+            .map(|m| m.amount)
+            .sum();
+
+        let refund = job.total_amount - approved_amount;
+        if refund <= 0 {
+            return Err(EscrowError::NoRefundDue);
+        }
+
+        // Transfer refund to client
+        let token_client = token::Client::new(&env, &job.token);
+        token_client.transfer(&env.current_contract_address(), &client, &refund);
+
+        job.status = JobStatus::Cancelled;
+        env.storage().persistent().set(&get_job_key(job_id), &job);
+        bump_job_ttl(&env, job_id);
+
+        // Emit event
+        env.events().publish(
+            (symbol_short!("escrow"), symbol_short!("refund")),
+            (job_id, refund, client),
         );
 
         Ok(())
