@@ -42,6 +42,13 @@ enum EscrowStatus {
   DISPUTED
 }
 
+enum TransactionType {
+  DEPOSIT
+  RELEASE
+  REFUND
+  DISPUTE_PAYOUT
+}
+
 model User {
   id            String   @id @default(cuid())
   walletAddress String   @unique
@@ -66,6 +73,8 @@ model User {
   reviewsGiven   Review[]      @relation("ReviewsGiven")
   reviewsReceived Review[]     @relation("ReviewsReceived")
   skills          String[]
+  transactionsFrom Transaction[] @relation("TransactionsFrom")
+  transactionsTo   Transaction[] @relation("TransactionsTo")
 }
 
 model Job {
@@ -90,6 +99,7 @@ model Job {
   applications Application[]
   messages     Message[]
   reviews      Review[]
+  transactions Transaction[]
 }
 
 model Milestone {
@@ -106,6 +116,7 @@ model Milestone {
   createdAt   DateTime        @default(now())
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 }
 
 model Application {
@@ -152,4 +163,29 @@ model Review {
   reviewee User @relation("ReviewsReceived", fields: [revieweeId], references: [id])
 
   @@unique([jobId, reviewerId])
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  jobId        String
+  milestoneId  String?
+  fromAddress  String
+  toAddress    String
+  amount       Float
+  tokenAddress String
+  txHash       String          @unique
+  type         TransactionType
+  createdAt    DateTime        @default(now())
+
+  job       Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  from      User       @relation("TransactionsFrom", fields: [fromAddress], references: [walletAddress])
+  to        User       @relation("TransactionsTo", fields: [toAddress], references: [walletAddress])
+
+  @@index([txHash])
+  @@index([jobId])
+  @@index([fromAddress])
+  @@index([toAddress])
+  @@index([type])
+  @@index([createdAt])
 }
