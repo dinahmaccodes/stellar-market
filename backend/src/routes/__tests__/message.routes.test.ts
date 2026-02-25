@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../../config";
 import messageRouter from "../message.routes";
 
-// ─── Prisma mock ─────────────────────────────────────────────────────────────
+// ─── Prisma & NotificationService mocks ───────────────────────────────────────
 jest.mock("@prisma/client", () => {
   const mockPrisma = {
     message: {
@@ -13,18 +13,46 @@ jest.mock("@prisma/client", () => {
       updateMany: jest.fn(),
       count: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
+    notification: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      updateMany: jest.fn(),
+    }
   };
-  return { PrismaClient: jest.fn(() => mockPrisma) };
+  return {
+    PrismaClient: jest.fn(() => mockPrisma) as any,
+    UserRole: {
+      CLIENT: "CLIENT",
+      FREELANCER: "FREELANCER",
+      ADMIN: "ADMIN",
+    } as any,
+    NotificationType: {
+      NEW_MESSAGE: "NEW_MESSAGE",
+      JOB_APPLIED: "JOB_APPLIED",
+      APPLICATION_ACCEPTED: "APPLICATION_ACCEPTED",
+      MILESTONE_SUBMITTED: "MILESTONE_SUBMITTED",
+      MILESTONE_APPROVED: "MILESTONE_APPROVED",
+    } as any
+  };
 });
 
+// Suppress TS errors for the mock to avoid compilation issues in tests
+// @ts-ignore
+import { UserRole, NotificationType } from "@prisma/client";
+
+jest.mock("../../services/notification.service", () => ({
+  NotificationService: {
+    sendNotification: jest.fn().mockResolvedValue({ id: "mock-notif-id" })
+  }
+}));
+
 import { PrismaClient } from "@prisma/client";
-const prismaMock = new PrismaClient() as jest.Mocked<PrismaClient>;
-const messageMock = prismaMock.message as unknown as {
-  create: jest.Mock;
-  findMany: jest.Mock;
-  updateMany: jest.Mock;
-  count: jest.Mock;
-};
+const prismaMock = new PrismaClient() as any;
+const messageMock = prismaMock.message;
 
 // ─── App setup ────────────────────────────────────────────────────────────────
 const app = express();
@@ -32,7 +60,7 @@ app.use(express.json());
 app.use("/api/messages", messageRouter);
 
 // ─── Stable test UUIDs (RFC 4122 v4 format) ──────────────────────────────────
-const USER_TEST_ID  = "00000000-0000-4000-8000-000000000001";
+const USER_TEST_ID = "00000000-0000-4000-8000-000000000001";
 const USER_OTHER_ID = "00000000-0000-4000-8000-000000000002";
 
 // ─── Helper: auth header ──────────────────────────────────────────────────────

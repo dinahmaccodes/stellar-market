@@ -108,3 +108,23 @@ export interface Conversation {
   lastMessage: Message;
   unreadCount: number;
 }
+
+export type NotificationType =
+  | "JOB_APPLIED"
+  | "APPLICATION_ACCEPTED"
+  | "MILESTONE_SUBMITTED"
+  | "MILESTONE_APPROVED"
+  | "DISPUTE_RAISED"
+  | "DISPUTE_RESOLVED"
+  | "NEW_MESSAGE";
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
