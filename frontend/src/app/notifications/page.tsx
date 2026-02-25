@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { Bell, CheckSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -19,7 +19,7 @@ export default function NotificationsPage() {
     const [markingAll, setMarkingAll] = useState(false);
     const limit = 10;
 
-    const fetchNotifications = async (p: number) => {
+    const fetchNotifications = useCallback(async (p: number) => {
         if (!token) return;
         setLoading(true);
         try {
@@ -36,11 +36,11 @@ export default function NotificationsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [token, limit]);
 
     useEffect(() => {
         fetchNotifications(page);
-    }, [page, token]);
+    }, [page, token, fetchNotifications]);
 
     const markAsRead = async (notification: Notification) => {
         if (notification.read || !token) return;
@@ -122,9 +122,10 @@ export default function NotificationsPage() {
                         {total > limit && (
                             <div className="p-6 border-t border-theme-border">
                                 <Pagination
-                                    currentPage={page}
-                                    totalCount={total}
-                                    pageSize={limit}
+                                    page={page}
+                                    totalPages={Math.ceil(total / limit)}
+                                    total={total}
+                                    limit={limit}
                                     onPageChange={setPage}
                                 />
                             </div>
@@ -137,7 +138,7 @@ export default function NotificationsPage() {
                         </div>
                         <h3 className="text-lg font-semibold text-theme-heading">No notifications yet</h3>
                         <p className="text-theme-text mt-1 max-w-xs mx-auto">
-                            We'll notify you when something important happens on the platform.
+                            We&apos;ll notify you when something important happens on the platform.
                         </p>
                     </div>
                 )}

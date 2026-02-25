@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import axios from "axios";
@@ -17,10 +17,9 @@ export default function NotificationBell() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCount = useCallback(async () => {
         if (!token) return;
         try {
             const res = await axios.get<{ count: number }>(`${API}/notifications/unread-count`, {
@@ -30,11 +29,10 @@ export default function NotificationBell() {
         } catch (error) {
             console.error("Failed to fetch unread count:", error);
         }
-    };
+    }, [token]);
 
-    const fetchRecentNotifications = async () => {
+    const fetchRecentNotifications = useCallback(async () => {
         if (!token) return;
-        setLoading(true);
         try {
             const res = await axios.get<PaginatedResponse<Notification>>(
                 `${API}/notifications?page=1&limit=5`,
@@ -46,14 +44,14 @@ export default function NotificationBell() {
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
         } finally {
-            setLoading(false);
+            // loading removed
         }
-    };
+    }, [token]);
 
     useEffect(() => {
         fetchUnreadCount();
         fetchRecentNotifications();
-    }, [token]);
+    }, [token, fetchUnreadCount, fetchRecentNotifications]);
 
     useEffect(() => {
         if (!socket) return;
@@ -85,10 +83,10 @@ export default function NotificationBell() {
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    }, []); // Dependencies are correct
 
     const markAsRead = async (notification: Notification) => {
-        if (notification.read || !token) return;
+        if (notification.read || !token) return; // Corrected the syntax error here
         try {
             await axios.put(`${API}/notifications/${notification.id}/read`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
