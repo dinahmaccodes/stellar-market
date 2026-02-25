@@ -36,7 +36,7 @@ export default function ServiceCard({ service }: ServiceCardProps) {
 
         <div className="flex items-center gap-4 text-sm text-theme-text mb-4">
           <div className="flex items-center gap-1">
-            <DollarSign size={14} className="text-green-400" />
+            <DollarSign size={14} className="text-theme-success" />
             <span className="font-semibold text-theme-heading">{service.price.toLocaleString()} XLM</span>
           </div>
           <div className="flex items-center gap-1">

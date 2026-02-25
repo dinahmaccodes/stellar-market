@@ -56,10 +56,10 @@ function FilterSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="border-b border-dark-border pb-4 mb-4 last:border-b-0 last:mb-0 last:pb-0">
+    <div className="border-b border-theme-border pb-4 mb-4 last:border-b-0 last:mb-0 last:pb-0">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-between w-full text-sm font-medium text-dark-heading mb-2"
+        className="flex items-center justify-between w-full text-sm font-medium text-theme-heading mb-2"
       >
         {title}
         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -84,7 +84,7 @@ export default function FilterSidebar({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <SlidersHorizontal size={18} className="text-stellar-blue" />
-          <h3 className="text-lg font-semibold text-dark-heading">Filters</h3>
+          <h3 className="text-lg font-semibold text-theme-heading">Filters</h3>
           {activeCount > 0 && (
             <span className="bg-stellar-blue text-white text-xs font-medium px-2 py-0.5 rounded-full">
               {activeCount}
@@ -93,7 +93,7 @@ export default function FilterSidebar({
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-1 text-dark-text hover:text-dark-heading transition-colors"
+          className="lg:hidden p-1 text-theme-text hover:text-theme-heading transition-colors"
         >
           <X size={20} />
         </button>
@@ -124,7 +124,7 @@ export default function FilterSidebar({
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                 filters.skills.includes(skill)
                   ? "bg-stellar-blue text-white"
-                  : "bg-dark-bg border border-dark-border text-dark-text hover:border-stellar-blue"
+                  : "bg-theme-bg border border-theme-border text-theme-text hover:border-stellar-blue"
               }`}
             >
               {skill}
@@ -142,9 +142,9 @@ export default function FilterSidebar({
                 type="checkbox"
                 checked={filters.status.includes(s.value)}
                 onChange={() => toggleArrayFilter("status", s.value)}
-                className="w-4 h-4 rounded border-dark-border bg-dark-bg text-stellar-blue focus:ring-stellar-blue accent-[#3E54CF]"
+                className="w-4 h-4 rounded border-theme-border bg-theme-bg text-stellar-blue focus:ring-stellar-blue accent-[#3E54CF]"
               />
-              <span className="text-sm text-dark-text">{s.label}</span>
+              <span className="text-sm text-theme-text">{s.label}</span>
             </label>
           ))}
         </div>
@@ -183,9 +183,9 @@ export default function FilterSidebar({
                 value={opt.value}
                 checked={filters.postedDate === opt.value}
                 onChange={(e) => updateFilter("postedDate", e.target.value)}
-                className="w-4 h-4 border-dark-border bg-dark-bg text-stellar-blue focus:ring-stellar-blue accent-[#3E54CF]"
+                className="w-4 h-4 border-theme-border bg-theme-bg text-stellar-blue focus:ring-stellar-blue accent-[#3E54CF]"
               />
-              <span className="text-sm text-dark-text">{opt.label}</span>
+              <span className="text-sm text-theme-text">{opt.label}</span>
             </label>
           ))}
         </div>
@@ -217,7 +217,7 @@ export default function FilterSidebar({
             className="absolute inset-0 bg-black/60"
             onClick={onClose}
           />
-          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-dark-card border-r border-dark-border p-6 overflow-y-auto animate-slide-in">
+          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-theme-card border-r border-theme-border p-6 overflow-y-auto animate-slide-in">
             {content}
           </div>
         </div>

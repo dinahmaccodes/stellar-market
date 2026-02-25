@@ -111,7 +111,7 @@ function UserMenu({ className }: { className?: string }) {
                 disconnect();
                 setMenuOpen(false);
               }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-400/10 transition-colors text-left"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-theme-error hover:bg-theme-error/10 transition-colors text-left"
             >
               <LogOut size={16} />
               Sign Out

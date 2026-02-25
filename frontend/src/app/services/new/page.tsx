@@ -82,7 +82,7 @@ export default function NewServicePage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="p-3 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 text-sm">
+          <div className="p-3 rounded-lg bg-theme-error/10 border border-theme-error/20 text-theme-error text-sm">
             {error}
           </div>
         )}
@@ -173,7 +173,7 @@ export default function NewServicePage() {
               <span key={skill} className="flex items-center gap-2 bg-theme-card border border-theme-border px-3 py-1.5 rounded-lg text-sm text-theme-text">
                 <Tag size={14} /> {skill}
                 <button type="button" onClick={() => handleRemoveSkill(skill)}>
-                  <Plus className="rotate-45 text-red-400 hover:text-red-300 transition-colors" size={16} />
+                  <Plus className="rotate-45 text-theme-error hover:opacity-80 transition-colors" size={16} />
                 </button>
               </span>
             ))}

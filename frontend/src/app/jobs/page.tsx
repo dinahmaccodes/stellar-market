@@ -81,7 +81,7 @@ function JobsContent() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-dark-heading">Browse Jobs</h1>
+        <h1 className="text-3xl font-bold text-theme-heading">Browse Jobs</h1>
         <button
           onClick={() => setDrawerOpen(true)}
           className="lg:hidden flex items-center gap-2 btn-secondary py-2 px-4 relative"
@@ -99,7 +99,7 @@ function JobsContent() {
       {/* Search */}
       <div className="relative mb-6">
         <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-text"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text"
           size={18}
         />
         <input
@@ -127,7 +127,7 @@ function JobsContent() {
         <div className="flex-1 min-w-0">
           {/* Results count */}
           {!loading && (
-            <p className="text-sm text-dark-text mb-4">
+            <p className="text-sm text-theme-text mb-4">
               Showing {start}
               {total > 0 && <>&ndash;{end}</>} of {total} jobs
             </p>
@@ -138,7 +138,7 @@ function JobsContent() {
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="animate-pulse bg-dark-card border border-dark-border rounded-xl h-64"
+                  className="animate-pulse bg-theme-card border border-theme-border rounded-xl h-64"
                 />
               ))}
             </div>
@@ -159,7 +159,7 @@ function JobsContent() {
             </>
           ) : (
             <div className="text-center py-20">
-              <p className="text-dark-text text-lg mb-2">
+              <p className="text-theme-text text-lg mb-2">
                 No jobs found matching your filters.
               </p>
               {activeCount > 0 && (
@@ -183,7 +183,7 @@ export default function JobsPage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="animate-pulse bg-dark-card rounded-xl h-96" />
+          <div className="animate-pulse bg-theme-card rounded-xl h-96" />
         </div>
       }
     >

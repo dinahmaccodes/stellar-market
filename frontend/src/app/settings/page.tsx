@@ -148,7 +148,7 @@ export default function SettingsPage() {
           <h2 className="text-xl font-semibold text-theme-heading">Edit Profile</h2>
 
           {errors.general && (
-            <div className="bg-red-900/30 border border-red-700 text-red-200 rounded-lg px-4 py-3 text-sm">
+            <div className="bg-theme-error/10 border border-theme-error/20 text-theme-error rounded-lg px-4 py-3 text-sm">
               {errors.general}
             </div>
           )}
@@ -171,7 +171,7 @@ export default function SettingsPage() {
               aria-describedby={errors.username ? "username-error" : undefined}
             />
             {errors.username && (
-              <p id="username-error" className="text-red-400 text-xs mt-1">
+              <p id="username-error" className="text-theme-error text-xs mt-1">
                 {errors.username}
               </p>
             )}
@@ -195,7 +195,7 @@ export default function SettingsPage() {
               aria-describedby={errors.email ? "email-error" : undefined}
             />
             {errors.email && (
-              <p id="email-error" className="text-red-400 text-xs mt-1">
+              <p id="email-error" className="text-theme-error text-xs mt-1">
                 {errors.email}
               </p>
             )}
@@ -220,7 +220,7 @@ export default function SettingsPage() {
             />
             <div className="flex justify-between mt-1">
               {errors.bio ? (
-                <p id="bio-error" className="text-red-400 text-xs">
+                <p id="bio-error" className="text-theme-error text-xs">
                   {errors.bio}
                 </p>
               ) : (
@@ -250,7 +250,7 @@ export default function SettingsPage() {
               aria-describedby={errors.avatarUrl ? "avatar-error" : undefined}
             />
             {errors.avatarUrl && (
-              <p id="avatar-error" className="text-red-400 text-xs mt-1">
+              <p id="avatar-error" className="text-theme-error text-xs mt-1">
                 {errors.avatarUrl}
               </p>
             )}

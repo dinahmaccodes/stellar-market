@@ -62,8 +62,8 @@ export default function Home() {
           </div>
 
           <div className="card text-center">
-            <div className="w-14 h-14 bg-green-500/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Scale className="text-green-400" size={28} />
+            <div className="w-14 h-14 bg-theme-success/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Scale className="text-theme-success" size={28} />
             </div>
             <h3 className="text-xl font-semibold text-theme-heading mb-3">
               Dispute Resolution

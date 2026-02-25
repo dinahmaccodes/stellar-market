@@ -122,7 +122,7 @@ export default function JobDetailPage() {
       </Link>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3 text-red-500">
+        <div className="mb-6 p-4 bg-theme-error/10 border border-theme-error/20 rounded-lg flex items-start gap-3 text-theme-error">
           <AlertCircle className="flex-shrink-0 mt-0.5" size={18} />
           <p className="text-sm">{error}</p>
         </div>
