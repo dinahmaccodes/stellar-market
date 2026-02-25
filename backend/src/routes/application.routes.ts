@@ -13,10 +13,80 @@ import {
 } from "../schemas";
 
 const router = Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Applications
+ *   description: Job application endpoints
+ */
 const prisma = new PrismaClient();
 
 // Apply for a job
 router.post(
+  /**
+   * @swagger
+   * /jobs/{jobId}/apply:
+   *   post:
+   *     summary: Apply for a job
+   *     tags: [Applications]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: jobId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Job ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateApplicationRequest'
+   *           examples:
+   *             example:
+   *               value:
+   *                 proposal: "I am a great fit..."
+   *                 estimatedDuration: 14
+   *                 bidAmount: 500
+   *     responses:
+   *       201:
+   *         description: Application created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApplicationResponse'
+   *       400:
+   *         description: Job not accepting applications
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
+  /**
+   * @swagger
+   * /jobs/{jobId}/applications:
+   *   get:
+   *     summary: Get applications for a job
+   *     tags: [Applications]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: jobId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Job ID
+   *     responses:
+   *       200:
+   *         description: List of applications
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApplicationsResponse'
+   */
   "/jobs/:jobId/apply",
   authenticate,
   validate({
@@ -147,6 +217,47 @@ router.get(
 
 // Update application status (accept/reject)
 router.put(
+  /**
+   * @swagger
+   * /applications/{id}/status:
+   *   put:
+   *     summary: Update application status
+   *     tags: [Applications]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Application ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UpdateApplicationStatusRequest'
+   *     responses:
+   *       200:
+   *         description: Application status updated
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApplicationResponse'
+   *       403:
+   *         description: Not authorized
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       404:
+   *         description: Application not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   "/applications/:id/status",
   authenticate,
   validate({

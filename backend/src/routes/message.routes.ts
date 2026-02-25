@@ -12,10 +12,60 @@ import {
 } from "../schemas";
 
 const router = Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Messages
+ *   description: Messaging endpoints
+ */
 const prisma = new PrismaClient();
 
 // Send a message
 router.post(
+  /**
+   * @swagger
+   * /messages:
+   *   post:
+   *     summary: Send a message
+   *     tags: [Messages]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateMessageRequest'
+   *           examples:
+   *             example:
+   *               value:
+   *                 receiverId: "uuid"
+   *                 jobId: "uuid"
+   *                 content: "Hello!"
+   *     responses:
+   *       201:
+   *         description: Message sent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/MessageResponse'
+   */
+  /**
+   * @swagger
+   * /messages:
+   *   get:
+   *     summary: Get messages
+   *     tags: [Messages]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: List of messages
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/MessagesResponse'
+   */
   "/",
   authenticate,
   validate({ body: createMessageSchema }),
