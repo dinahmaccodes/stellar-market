@@ -331,6 +331,28 @@
                     },
                     {
                       "key": {
+                        "symbol": "total_stake_for_client"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 0
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "total_stake_for_freelancer"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 0
+                        }
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "votes_for_client"
                       },
                       "val": {

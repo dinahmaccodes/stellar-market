@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror, symbol_short, Address, Env, String, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, String, Vec,
 };
 use stellar_market_escrow::{EscrowContractClient, JobStatus};
 
@@ -51,15 +51,19 @@ const MIN_TTL_THRESHOLD: u32 = 1_000;
 const MIN_TTL_EXTEND_TO: u32 = 10_000;
 
 fn bump_reputation_ttl(env: &Env, user: &Address) {
-    env.storage()
-        .persistent()
-        .extend_ttl(&DataKey::Reputation(user.clone()), MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
+    env.storage().persistent().extend_ttl(
+        &DataKey::Reputation(user.clone()),
+        MIN_TTL_THRESHOLD,
+        MIN_TTL_EXTEND_TO,
+    );
 }
 
 fn bump_reviews_ttl(env: &Env, user: &Address) {
-    env.storage()
-        .persistent()
-        .extend_ttl(&DataKey::Reviews(user.clone()), MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
+    env.storage().persistent().extend_ttl(
+        &DataKey::Reviews(user.clone()),
+        MIN_TTL_THRESHOLD,
+        MIN_TTL_EXTEND_TO,
+    );
 }
 
 fn bump_review_exists_ttl(env: &Env, reviewer: &Address, reviewee: &Address, job_id: u64) {
@@ -131,16 +135,16 @@ impl ReputationContract {
 
         // Update user reputation
         let rep_key = DataKey::Reputation(reviewee.clone());
-        let mut reputation: UserReputation = env
-            .storage()
-            .persistent()
-            .get(&rep_key)
-            .unwrap_or(UserReputation {
-                user: reviewee.clone(),
-                total_score: 0,
-                total_weight: 0,
-                review_count: 0,
-            });
+        let mut reputation: UserReputation =
+            env.storage()
+                .persistent()
+                .get(&rep_key)
+                .unwrap_or(UserReputation {
+                    user: reviewee.clone(),
+                    total_score: 0,
+                    total_weight: 0,
+                    review_count: 0,
+                });
 
         reputation.total_score += (rating as u64) * weight;
         reputation.total_weight += weight;
@@ -224,9 +228,11 @@ impl ReputationContract {
         let reviews: Option<Vec<Review>> = env.storage().persistent().get(&reviews_key);
         match reviews {
             Some(list) => {
-                env.storage()
-                    .persistent()
-                    .extend_ttl(&reviews_key, MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
+                env.storage().persistent().extend_ttl(
+                    &reviews_key,
+                    MIN_TTL_THRESHOLD,
+                    MIN_TTL_EXTEND_TO,
+                );
                 list
             }
             None => Vec::new(&env),

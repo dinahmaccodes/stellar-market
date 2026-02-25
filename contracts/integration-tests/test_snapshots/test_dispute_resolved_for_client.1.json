@@ -310,6 +310,12 @@
                 },
                 {
                   "string": "Work incomplete"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -342,6 +348,12 @@
                 },
                 {
                   "string": "Client is right"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -374,6 +386,12 @@
                 },
                 {
                   "string": "Looks ok to me"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -913,6 +931,28 @@
                     },
                     {
                       "key": {
+                        "symbol": "total_stake_for_client"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 0
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "total_stake_for_freelancer"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 0
+                        }
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "votes_for_client"
                       },
                       "val": {
@@ -1150,6 +1190,17 @@
                         },
                         {
                           "key": {
+                            "symbol": "stake_amount"
+                          },
+                          "val": {
+                            "i128": {
+                              "hi": 0,
+                              "lo": 0
+                            }
+                          }
+                        },
+                        {
+                          "key": {
                             "symbol": "timestamp"
                           },
                           "val": {
@@ -1190,6 +1241,17 @@
                         },
                         {
                           "key": {
+                            "symbol": "stake_amount"
+                          },
+                          "val": {
+                            "i128": {
+                              "hi": 0,
+                              "lo": 0
+                            }
+                          }
+                        },
+                        {
+                          "key": {
                             "symbol": "timestamp"
                           },
                           "val": {
@@ -1226,6 +1288,17 @@
                           },
                           "val": {
                             "string": "Looks ok to me"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "stake_amount"
+                          },
+                          "val": {
+                            "i128": {
+                              "hi": 0,
+                              "lo": 0
+                            }
                           }
                         },
                         {
@@ -3003,6 +3076,12 @@
                 },
                 {
                   "string": "Work incomplete"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -3104,6 +3183,12 @@
                 },
                 {
                   "string": "Client is right"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }
@@ -3205,6 +3290,12 @@
                 },
                 {
                   "string": "Looks ok to me"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
                 }
               ]
             }

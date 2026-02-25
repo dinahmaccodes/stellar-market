@@ -1,8 +1,8 @@
 #![cfg(test)]
 
 use super::*;
+use soroban_sdk::{symbol_short, testutils::Address as _, Env, String, Vec};
 use stellar_market_escrow::{EscrowContract, Job, JobStatus};
-use soroban_sdk::{testutils::Address as _, symbol_short, Env, String, Vec};
 
 /// Helper: directly write a completed job into the escrow contract's storage,
 /// bypassing the full escrow flow (token transfers, milestone approvals, etc.).

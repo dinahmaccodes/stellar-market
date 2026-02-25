@@ -1,8 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror, symbol_short, token, Address, Env, String,
-    Vec, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env, String,
+    Symbol, Vec,
 };
 
 #[contracterror]
@@ -76,9 +76,11 @@ const MIN_TTL_THRESHOLD: u32 = 1_000;
 const MIN_TTL_EXTEND_TO: u32 = 10_000;
 
 fn bump_job_ttl(env: &Env, job_id: u64) {
-    env.storage()
-        .persistent()
-        .extend_ttl(&get_job_key(job_id), MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
+    env.storage().persistent().extend_ttl(
+        &get_job_key(job_id),
+        MIN_TTL_THRESHOLD,
+        MIN_TTL_EXTEND_TO,
+    );
 }
 
 fn bump_job_count_ttl(env: &Env) {
@@ -108,7 +110,11 @@ impl EscrowContract {
             return Err(EscrowError::InvalidDeadline);
         }
 
-        let mut job_count: u64 = env.storage().instance().get(&symbol_short!("JOB_CNT")).unwrap_or(0);
+        let mut job_count: u64 = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("JOB_CNT"))
+            .unwrap_or(0);
         job_count += 1;
 
         let mut total: i128 = 0;
@@ -144,9 +150,13 @@ impl EscrowContract {
             auto_refund_after,
         };
 
-        env.storage().persistent().set(&get_job_key(job_count), &job);
+        env.storage()
+            .persistent()
+            .set(&get_job_key(job_count), &job);
         bump_job_ttl(&env, job_count);
-        env.storage().instance().set(&symbol_short!("JOB_CNT"), &job_count);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("JOB_CNT"), &job_count);
         bump_job_count_ttl(&env);
 
         // Emit event
@@ -225,11 +235,7 @@ impl EscrowContract {
                 token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
                 job.status = JobStatus::Cancelled;
             } else {
-                token_client.transfer(
-                    &env.current_contract_address(),
-                    &job.freelancer,
-                    &remaining,
-                );
+                token_client.transfer(&env.current_contract_address(), &job.freelancer, &remaining);
                 job.status = JobStatus::Completed;
             }
         } else {
@@ -274,9 +280,13 @@ impl EscrowContract {
         }
 
         let mut milestones = job.milestones.clone();
-        let milestone = milestones.get(milestone_id).ok_or(EscrowError::MilestoneNotFound)?;
+        let milestone = milestones
+            .get(milestone_id)
+            .ok_or(EscrowError::MilestoneNotFound)?;
 
-        if milestone.status != MilestoneStatus::Pending && milestone.status != MilestoneStatus::InProgress {
+        if milestone.status != MilestoneStatus::Pending
+            && milestone.status != MilestoneStatus::InProgress
+        {
             return Err(EscrowError::InvalidStatus);
         }
 
@@ -322,7 +332,9 @@ impl EscrowContract {
         }
 
         let mut milestones = job.milestones.clone();
-        let milestone = milestones.get(milestone_id).ok_or(EscrowError::MilestoneNotFound)?;
+        let milestone = milestones
+            .get(milestone_id)
+            .ok_or(EscrowError::MilestoneNotFound)?;
 
         if milestone.status != MilestoneStatus::Submitted {
             return Err(EscrowError::InvalidStatus);
@@ -347,7 +359,9 @@ impl EscrowContract {
         job.milestones = milestones.clone();
 
         // Check if all milestones are approved
-        let all_approved = milestones.iter().all(|m| m.status == MilestoneStatus::Approved);
+        let all_approved = milestones
+            .iter()
+            .all(|m| m.status == MilestoneStatus::Approved);
         if all_approved {
             job.status = JobStatus::Completed;
         }
@@ -501,7 +515,11 @@ impl EscrowContract {
 
     /// Check if a milestone is overdue.
     pub fn is_milestone_overdue(env: Env, job_id: u64, milestone_id: u32) -> bool {
-        if let Some(job) = env.storage().persistent().get::<_, Job>(&get_job_key(job_id)) {
+        if let Some(job) = env
+            .storage()
+            .persistent()
+            .get::<_, Job>(&get_job_key(job_id))
+        {
             if let Some(milestone) = job.milestones.get(milestone_id) {
                 return env.ledger().timestamp() > milestone.deadline;
             }
@@ -530,7 +548,9 @@ impl EscrowContract {
         }
 
         let mut milestones = job.milestones.clone();
-        let mut milestone = milestones.get(milestone_id).ok_or(EscrowError::MilestoneNotFound)?;
+        let mut milestone = milestones
+            .get(milestone_id)
+            .ok_or(EscrowError::MilestoneNotFound)?;
 
         milestone.deadline = new_deadline;
         milestones.set(milestone_id, milestone);
