@@ -75,6 +75,7 @@ model User {
   skills          String[]
   transactionsFrom Transaction[] @relation("TransactionsFrom")
   transactionsTo   Transaction[] @relation("TransactionsTo")
+  attachments      Attachment[]
 }
 
 model Job {
@@ -100,6 +101,7 @@ model Job {
   messages     Message[]
   reviews      Review[]
   transactions Transaction[]
+  attachments  Attachment[]
 }
 
 model Milestone {
@@ -187,5 +189,26 @@ model Transaction {
   @@index([fromAddress])
   @@index([toAddress])
   @@index([type])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  uploaderId   String
+  jobId        String?
+  disputeId    String?
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  createdAt    DateTime @default(now())
+
+  uploader User  @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  job      Job?  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([uploaderId])
+  @@index([jobId])
+  @@index([disputeId])
   @@index([createdAt])
 }
