@@ -652,6 +652,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "excluded_voters"
+                      },
+                      "val": {
+                        "vec": []
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -2621,6 +2629,14 @@
                 },
                 {
                   "key": {
+                    "symbol": "excluded_voters"
+                  },
+                  "val": {
+                    "vec": []
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "freelancer"
                   },
                   "val": {
@@ -3062,6 +3078,14 @@
                   },
                   "val": {
                     "u64": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "excluded_voters"
+                  },
+                  "val": {
+                    "vec": []
                   }
                 },
                 {

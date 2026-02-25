@@ -41,9 +41,10 @@ fn test_initialize_contract() {
     let client = DisputeContractClient::new(&env, &dispute_contract_id);
 
     let reputation_contract_id = env.register_contract(None, MockReputationContract);
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
     let admin = Address::generate(&env);
 
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
 
     // Verify initialization by checking if we can set min reputation
     client.set_min_voter_reputation(&admin, &400);
@@ -59,11 +60,12 @@ fn test_initialize_twice_fails() {
     let client = DisputeContractClient::new(&env, &dispute_contract_id);
 
     let reputation_contract_id = env.register_contract(None, MockReputationContract);
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
     let admin = Address::generate(&env);
 
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
     // Try to initialize again - should fail
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
 }
 
 #[test]
@@ -75,9 +77,10 @@ fn test_set_min_voter_reputation() {
     let client = DisputeContractClient::new(&env, &dispute_contract_id);
 
     let reputation_contract_id = env.register_contract(None, MockReputationContract);
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
     let admin = Address::generate(&env);
 
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
     client.set_min_voter_reputation(&admin, &500);
 }
 
@@ -91,10 +94,11 @@ fn test_set_min_voter_reputation_non_admin_fails() {
     let client = DisputeContractClient::new(&env, &dispute_contract_id);
 
     let reputation_contract_id = env.register_contract(None, MockReputationContract);
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
     let admin = Address::generate(&env);
     let non_admin = Address::generate(&env);
 
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
     // Non-admin tries to set min reputation - should fail
     client.set_min_voter_reputation(&non_admin, &500);
 }
@@ -108,9 +112,10 @@ fn test_is_eligible_voter_high_reputation() {
     let client = DisputeContractClient::new(&env, &dispute_contract_id);
 
     let reputation_contract_id = env.register_contract(None, MockReputationContract);
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
     let admin = Address::generate(&env);
 
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
 
     let voter = Address::generate(&env);
     
@@ -128,9 +133,10 @@ fn test_vote_with_reputation_check() {
     let client = DisputeContractClient::new(&env, &dispute_contract_id);
 
     let reputation_contract_id = env.register_contract(None, MockReputationContract);
+    let escrow_contract_id = env.register_contract(None, DummyEscrow);
     let admin = Address::generate(&env);
 
-    client.initialize(&admin, &reputation_contract_id, &300);
+    client.initialize(&admin, &reputation_contract_id, &300, &escrow_contract_id);
 
     let user_client = Address::generate(&env);
     let freelancer = Address::generate(&env);

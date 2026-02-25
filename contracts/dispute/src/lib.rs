@@ -32,6 +32,7 @@ pub enum DisputeError {
     AlreadyResolved = 7,
     InsufficientReputation = 8,
     NotInitialized = 9,
+    ConflictOfInterest = 10,
 }
 
 #[contracttype]
@@ -73,6 +74,7 @@ pub struct Dispute {
     pub votes_for_freelancer: u32,
     pub min_votes: u32,
     pub created_at: u64,
+    pub excluded_voters: Vec<Address>,
 }
 
 #[contracttype]
@@ -85,6 +87,7 @@ enum DataKey {
     ReputationContract,
     MinVoterReputation,
     Admin,
+    EscrowContract,
 }
 
 const MIN_VOTER_REPUTATION: u32 = 300;
@@ -116,6 +119,120 @@ fn bump_dispute_count_ttl(env: &Env) {
         .extend_ttl(MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
 }
 
+// Import Job struct from escrow for cross-contract calls
+mod escrow {
+    use soroban_sdk::{contracttype, Address, String, Vec};
+
+    #[contracttype]
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub enum JobStatus {
+        Created,
+        Funded,
+        InProgress,
+        Completed,
+        Cancelled,
+        Disputed,
+    }
+
+    #[contracttype]
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub enum MilestoneStatus {
+        Pending,
+        Submitted,
+        Approved,
+        Rejected,
+    }
+
+    #[contracttype]
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Milestone {
+        pub id: u32,
+        pub description: String,
+        pub amount: i128,
+        pub status: MilestoneStatus,
+        pub deadline: u64,
+    }
+
+    #[contracttype]
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Job {
+        pub id: u64,
+        pub client: Address,
+        pub freelancer: Address,
+        pub token: Address,
+        pub total_amount: i128,
+        pub status: JobStatus,
+        pub milestones: Vec<Milestone>,
+        pub job_deadline: u64,
+        pub auto_refund_after: u64,
+    }
+}
+
+/// Detect conflicts of interest by querying job history from escrow contract.
+/// Returns a deduplicated list of addresses that have worked with either disputing party.
+fn detect_conflicts(
+    env: &Env,
+    escrow_contract: &Address,
+    client: &Address,
+    freelancer: &Address,
+) -> Vec<Address> {
+    let mut conflicts = Vec::<Address>::new(env);
+
+    // Query job count from escrow
+    let job_count_result = env.try_invoke_contract::<u64, soroban_sdk::Error>(
+        escrow_contract,
+        &Symbol::new(env, "get_job_count"),
+        vec![env],
+    );
+
+    let job_count = match job_count_result {
+        Ok(Ok(count)) => count,
+        _ => return conflicts, // Return empty if query fails
+    };
+
+    if job_count == 0 {
+        return conflicts;
+    }
+
+    // Iterate through all jobs
+    for job_id in 1..=job_count {
+        let job_result = env.try_invoke_contract::<escrow::Job, soroban_sdk::Error>(
+            escrow_contract,
+            &Symbol::new(env, "get_job"),
+            vec![env, job_id.into_val(env)],
+        );
+
+        let job = match job_result {
+            Ok(Ok(j)) => j,
+            _ => continue, // Skip failed queries
+        };
+
+        // Check if job involves dispute client
+        if &job.client == client || &job.freelancer == client {
+            // Add the other party if not already in conflicts and not the dispute freelancer
+            if &job.client != client && &job.client != freelancer && !conflicts.contains(&job.client) {
+                conflicts.push_back(job.client.clone());
+            }
+            if &job.freelancer != client && &job.freelancer != freelancer && !conflicts.contains(&job.freelancer) {
+                conflicts.push_back(job.freelancer.clone());
+            }
+        }
+
+        // Check if job involves dispute freelancer
+        if &job.client == freelancer || &job.freelancer == freelancer {
+            // Add the other party if not already in conflicts and not the dispute client
+            if &job.client != freelancer && &job.client != client && !conflicts.contains(&job.client) {
+                conflicts.push_back(job.client.clone());
+            }
+            if &job.freelancer != freelancer && &job.freelancer != client && !conflicts.contains(&job.freelancer) {
+                conflicts.push_back(job.freelancer.clone());
+            }
+        }
+    }
+
+    conflicts
+}
+
 #[contract]
 pub struct DisputeContract;
 
@@ -127,6 +244,7 @@ impl DisputeContract {
         admin: Address,
         reputation_contract: Address,
         min_voter_reputation: u32,
+        escrow_contract: Address,
     ) -> Result<(), DisputeError> {
         admin.require_auth();
 
@@ -142,6 +260,9 @@ impl DisputeContract {
         env.storage()
             .instance()
             .set(&DataKey::MinVoterReputation, &min_voter_reputation);
+        env.storage()
+            .instance()
+            .set(&DataKey::EscrowContract, &escrow_contract);
 
         bump_dispute_count_ttl(&env);
 
@@ -240,11 +361,22 @@ impl DisputeContract {
             .unwrap_or(0);
         count += 1;
 
+        // Detect conflicts of interest by querying escrow contract
+        let excluded_voters = if let Some(escrow_contract) = env
+            .storage()
+            .instance()
+            .get::<DataKey, Address>(&DataKey::EscrowContract)
+        {
+            detect_conflicts(&env, &escrow_contract, &client, &freelancer)
+        } else {
+            Vec::<Address>::new(&env)
+        };
+
         let dispute = Dispute {
             id: count,
             job_id,
-            client,
-            freelancer,
+            client: client.clone(),
+            freelancer: freelancer.clone(),
             initiator: initiator.clone(),
             reason,
             status: DisputeStatus::Open,
@@ -252,6 +384,7 @@ impl DisputeContract {
             votes_for_freelancer: 0,
             min_votes: if min_votes < 3 { 3 } else { min_votes },
             created_at: env.ledger().timestamp(),
+            excluded_voters,
         };
 
         env.storage()
@@ -301,6 +434,11 @@ impl DisputeContract {
         // Parties involved cannot vote
         if voter == dispute.client || voter == dispute.freelancer {
             return Err(DisputeError::InvalidParty);
+        }
+
+        // Check if voter is excluded due to conflict of interest
+        if dispute.excluded_voters.contains(&voter) {
+            return Err(DisputeError::ConflictOfInterest);
         }
 
         // Check voter reputation eligibility (only if reputation system is initialized)
@@ -353,6 +491,53 @@ impl DisputeContract {
         env.events().publish(
             (symbol_short!("dispute"), symbol_short!("voted")),
             (dispute_id, voter, choice),
+        );
+
+        Ok(())
+    }
+
+    /// Add a voter to the exclusion list for a dispute (only during Open status).
+    /// Can only be called by the client or freelancer involved in the dispute.
+    pub fn add_excluded_voter(
+        env: Env,
+        dispute_id: u64,
+        caller: Address,
+        voter: Address,
+    ) -> Result<(), DisputeError> {
+        caller.require_auth();
+
+        let mut dispute: Dispute = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Dispute(dispute_id))
+            .ok_or(DisputeError::DisputeNotFound)?;
+        bump_dispute_ttl(&env, dispute_id);
+
+        // Verify caller is either client or freelancer
+        if caller != dispute.client && caller != dispute.freelancer {
+            return Err(DisputeError::Unauthorized);
+        }
+
+        // Check dispute status is Open
+        if dispute.status != DisputeStatus::Open {
+            return Err(DisputeError::VotingClosed);
+        }
+
+        // Add voter to excluded list if not already present
+        if !dispute.excluded_voters.contains(&voter) {
+            dispute.excluded_voters.push_back(voter.clone());
+        }
+
+        // Store updated dispute
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dispute(dispute_id), &dispute);
+        bump_dispute_ttl(&env, dispute_id);
+
+        // Emit event
+        env.events().publish(
+            (symbol_short!("dispute"), symbol_short!("excluded")),
+            (dispute_id, voter),
         );
 
         Ok(())
@@ -439,6 +624,19 @@ impl DisputeContract {
             .instance()
             .get(&DataKey::DisputeCount)
             .unwrap_or(0)
+    }
+
+    /// Check if a voter is excluded from voting on a specific dispute.
+    pub fn is_excluded_voter(env: Env, dispute_id: u64, voter: Address) -> bool {
+        let dispute_result: Option<Dispute> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Dispute(dispute_id));
+
+        match dispute_result {
+            Some(dispute) => dispute.excluded_voters.contains(&voter),
+            None => false,
+        }
     }
 }
 

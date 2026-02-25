@@ -17,12 +17,82 @@ import { generateToken, hashToken } from "../utils/token";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/email";
 
 const router = Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication endpoints
+ */
 const prisma = new PrismaClient();
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 // Register a new user
 router.post(
+  /**
+   * @swagger
+   * /auth/register:
+   *   post:
+   *     summary: Register a new user
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/RegisterRequest'
+   *           examples:
+   *             example:
+   *               value:
+   *                 email: user@example.com
+   *                 password: password123
+   *                 stellarAddress: GABCD123...
+   *                 name: John Doe
+   *     responses:
+   *       201:
+   *         description: User registered successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/RegisterResponse'
+   *       409:
+   *         description: User already exists
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
+  /**
+   * @swagger
+   * /auth/login:
+   *   post:
+   *     summary: Login user
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/LoginRequest'
+   *           examples:
+   *             example:
+   *               value:
+   *                 email: user@example.com
+   *                 password: password123
+   *     responses:
+   *       200:
+   *         description: Login successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/LoginResponse'
+   *       401:
+   *         description: Invalid credentials
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   "/register",
   validate({ body: registerSchema }),
   asyncHandler(async (req: Request, res: Response) => {

@@ -9,7 +9,7 @@ export default function ThemeToggleButton() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-heading)] hover:text-stellar-blue transition-colors duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-stellar-blue/50"
+      className="p-2 rounded-lg bg-theme-card border border-theme-border text-theme-heading hover:text-stellar-blue transition-colors duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-stellar-blue/50"
       aria-label="Toggle theme"
     >
       {theme === "dark" ? (

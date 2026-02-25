@@ -137,6 +137,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "excluded_voters"
+                      },
+                      "val": {
+                        "vec": []
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "freelancer"
                       },
                       "val": {

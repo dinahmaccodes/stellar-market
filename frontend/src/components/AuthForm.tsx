@@ -150,7 +150,7 @@ export default function AuthForm({ type }: AuthFormProps) {
                 )}
               </div>
               {!address && type === "register" && (
-                <p className="text-xs text-red-400 mt-1">Wallet is required for registration</p>
+                <p className="text-xs text-theme-error mt-1">Wallet is required for registration</p>
               )}
             </div>
           </>
@@ -199,7 +199,7 @@ export default function AuthForm({ type }: AuthFormProps) {
         </div>
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+          <div className="p-3 bg-theme-error/10 border border-theme-error/20 rounded-lg text-theme-error text-sm">
             {error}
           </div>
         )}

@@ -12,10 +12,68 @@ import {
 } from "../schemas";
 
 const router = Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Jobs
+ *   description: Job management endpoints
+ */
 const prisma = new PrismaClient();
 
 // Get all jobs with optional filters and pagination
 router.get("/",
+  /**
+   * @swagger
+   * /jobs:
+   *   get:
+   *     summary: Get all jobs
+   *     tags: [Jobs]
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *         description: Page number
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *         description: Items per page
+   *     responses:
+   *       200:
+   *         description: List of jobs
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/JobsResponse'
+   */
+  /**
+   * @swagger
+   * /jobs/{id}:
+   *   get:
+   *     summary: Get job by ID
+   *     tags: [Jobs]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Job ID
+   *     responses:
+   *       200:
+   *         description: Job details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/JobResponse'
+   *       404:
+   *         description: Job not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   validate({ query: getJobsQuerySchema }),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { page, limit, search, skill, skills, status, minBudget, maxBudget, clientId, sort, postedAfter } = req.query as any;
@@ -119,6 +177,119 @@ router.get("/:id",
 
 // Create a new job
 router.post("/",
+  /**
+   * @swagger
+   * /jobs:
+   *   post:
+   *     summary: Create a new job
+   *     tags: [Jobs]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateJobRequest'
+   *           examples:
+   *             example:
+   *               value:
+   *                 title: Sample Job
+   *                 description: Job description...
+   *                 budget: 1000
+   *                 skills: ["React", "Node.js"]
+   *                 deadline: "2026-03-01T00:00:00Z"
+   *                 category: Development
+   *     responses:
+   *       201:
+   *         description: Job created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/JobResponse'
+   *       400:
+   *         description: Invalid input
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
+  /**
+   * @swagger
+   * /jobs/{id}:
+   *   put:
+   *     summary: Update a job
+   *     tags: [Jobs]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Job ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UpdateJobRequest'
+   *     responses:
+   *       200:
+   *         description: Job updated
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/JobResponse'
+   *       403:
+   *         description: Not authorized
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       404:
+   *         description: Job not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
+  /**
+   * @swagger
+   * /jobs/{id}:
+   *   delete:
+   *     summary: Delete a job
+   *     tags: [Jobs]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Job ID
+   *     responses:
+   *       200:
+   *         description: Job deleted
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/SuccessResponse'
+   *       403:
+   *         description: Not authorized
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       404:
+   *         description: Job not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   authenticate,
   validate({ body: createJobSchema }),
   asyncHandler(async (req: AuthRequest, res: Response) => {

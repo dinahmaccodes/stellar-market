@@ -11,10 +11,72 @@ import {
 } from "../schemas";
 
 const router = Router();
+/**
+ * @swagger
+ * tags:
+ *   name: Reviews
+ *   description: Review endpoints
+ */
 const prisma = new PrismaClient();
 
 // Create a review
 router.post("/",
+  /**
+   * @swagger
+   * /reviews:
+   *   post:
+   *     summary: Create a review
+   *     tags: [Reviews]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateReviewRequest'
+   *           examples:
+   *             example:
+   *               value:
+   *                 jobId: "uuid"
+   *                 revieweeId: "uuid"
+   *                 rating: 5
+   *                 comment: "Great work!"
+   *     responses:
+   *       201:
+   *         description: Review created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ReviewResponse'
+   *       400:
+   *         description: Can only review completed jobs
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
+  /**
+   * @swagger
+   * /reviews/user/{userId}:
+   *   get:
+   *     summary: Get reviews for a user
+   *     tags: [Reviews]
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: User ID
+   *     responses:
+   *       200:
+   *         description: List of reviews
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ReviewsResponse'
+   */
   authenticate,
   validate({ body: createReviewSchema }),
   asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -10,6 +10,7 @@ import { errorHandler } from "./middleware/error";
 import { initSocket } from "./socket";
 
 const app = express();
+import { swaggerUi, swaggerSpec } from "./config/swagger";
 const httpServer = createServer(app);
 
 // Attach Socket.io
@@ -27,6 +28,14 @@ const corsOptions: cors.CorsOptions = {
 };
 
 // Security middleware
+  // Swagger UI setup (disabled in production)
+  if (process.env.NODE_ENV !== "production") {
+    app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+    app.get("/api/openapi.json", (_req, res) => {
+      res.setHeader("Content-Type", "application/json");
+      res.send(swaggerSpec);
+    });
+  }
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
