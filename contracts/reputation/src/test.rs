@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{symbol_short, testutils::Address as _, Env, String, Vec};
+use soroban_sdk::{symbol_short, testutils::{Address as _, Ledger}, Env, String, Vec};
 use stellar_market_escrow::{EscrowContract, Job, JobStatus};
 
 /// Helper: directly write a completed job into the escrow contract's storage,
@@ -734,4 +734,115 @@ fn test_badge_timestamp() {
 
     let badge = badges.get(0).unwrap();
     assert!(badge.awarded_at >= before_timestamp);
+}
+
+#[test]
+fn test_set_decay_rate() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let reputation_id = env.register_contract(None, ReputationContract);
+    let reputation_client = ReputationContractClient::new(&env, &reputation_id);
+    let admin = Address::generate(&env);
+
+    reputation_client.initialize(&admin, &50u32);
+
+    // Set valid decay rate
+    reputation_client.set_decay_rate(&admin, &75u32);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #10)")]
+fn test_set_decay_rate_invalid() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let reputation_id = env.register_contract(None, ReputationContract);
+    let reputation_client = ReputationContractClient::new(&env, &reputation_id);
+    let admin = Address::generate(&env);
+
+    reputation_client.initialize(&admin, &50u32);
+
+    // Set invalid decay rate > 100
+    reputation_client.set_decay_rate(&admin, &101u32);
+}
+
+#[test]
+fn test_decay_calculation() {
+    let env = Env::default();
+    env.mock_all_auths();
+    
+    let escrow_id = env.register_contract(None, EscrowContract);
+    let reputation_id = env.register_contract(None, ReputationContract);
+    let reputation_client = ReputationContractClient::new(&env, &reputation_id);
+    let admin = Address::generate(&env);
+    
+    // Set decay rate to 50% per year
+    reputation_client.initialize(&admin, &50u32);
+
+    let reviewer = Address::generate(&env);
+    let reviewee = Address::generate(&env);
+
+    setup_completed_job(&env, &escrow_id, 1u64, &reviewer, &reviewee);
+
+    // Initial timestamp: day 0
+    let start_time = 1_000_000;
+    env.ledger().with_mut(|l| l.timestamp = start_time);
+
+    // Review with weight 100, rating 5
+    reputation_client.submit_review(
+        &escrow_id,
+        &reviewer,
+        &reviewee,
+        &1u64,
+        &5u32,
+        &String::from_str(&env, "Great"),
+        &100_i128,
+    );
+
+    // At day 0 (no decay), effective weight should be full
+    // avg = 5 * 100 / 100 = 5.0 (500)
+    assert_eq!(reputation_client.get_average_rating(&reviewee), 500);
+
+    // Advance 1 day (86400 seconds)
+    // 50% decay per year (31,536,000s). 1 day is a tiny fraction.
+    env.ledger().with_mut(|l| l.timestamp = start_time + 86400);
+    // Weight should be almost 100, rating still 5.0
+    assert_eq!(reputation_client.get_average_rating(&reviewee), 500);
+
+    // Advance 1 year (31,536,000 seconds)
+    // 50% decay per year -> weight should be 50
+    // Rating should still be 5.0 because the only review's weight decays, but the score ratio is the same
+    env.ledger().with_mut(|l| l.timestamp = start_time + 31_536_000);
+    assert_eq!(reputation_client.get_average_rating(&reviewee), 500);
+    
+    // To actually test that weight decayed, we need to add a second review.
+    let reviewer2 = Address::generate(&env);
+    setup_completed_job(&env, &escrow_id, 2u64, &reviewer2, &reviewee);
+    
+    // Second review at year 1 with weight 100, rating 1 (Poor)
+    reputation_client.submit_review(
+        &escrow_id,
+        &reviewer2,
+        &reviewee,
+        &2u64,
+        &1u32,
+        &String::from_str(&env, "Terrible now"),
+        &100_i128,
+    );
+
+    // Now, Review 1 (5 stars) has weight 50 (decayed by 50%). Review 2 (1 star) has weight 100.
+    // Total weight: 150
+    // Weighted score: 5 * 50 + 1 * 100 = 250 + 100 = 350
+    // Avg = 350 / 150 = 2.333... -> 233
+    assert_eq!(reputation_client.get_average_rating(&reviewee), 233);
+    
+    // Advance to year 2 (63,072,000 seconds from start)
+    // Review 1 is 2 years old -> 100% decayed (weight 0)
+    // Review 2 is 1 year old -> 50% decayed (weight 50)
+    // Total weight: 50
+    // Weighted score: 1 * 50 = 50
+    // Avg = 50 / 50 = 1.0 -> 100
+    env.ledger().with_mut(|l| l.timestamp = start_time + 63_072_000);
+    assert_eq!(reputation_client.get_average_rating(&reviewee), 100);
 }

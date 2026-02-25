@@ -196,7 +196,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           },
@@ -711,6 +712,18 @@
                         "vec": [
                           {
                             "symbol": "ResolvedForFreelancer"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "tie_break_method"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "RefundBoth"
                           }
                         ]
                       }
@@ -2320,7 +2333,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           }
@@ -2744,7 +2758,11 @@
                   "u64": 1
                 },
                 {
-                  "bool": false
+                  "vec": [
+                    {
+                      "symbol": "FreelancerWins"
+                    }
+                  ]
                 }
               ]
             }
@@ -2866,7 +2884,11 @@
                   "u64": 1
                 },
                 {
-                  "bool": false
+                  "vec": [
+                    {
+                      "symbol": "FreelancerWins"
+                    }
+                  ]
                 }
               ]
             }

@@ -197,7 +197,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           },
@@ -714,6 +715,18 @@
                         "vec": [
                           {
                             "symbol": "ResolvedForFreelancer"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "tie_break_method"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "RefundBoth"
                           }
                         ]
                       }
@@ -2504,7 +2517,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           }
@@ -2691,6 +2705,18 @@
                     "vec": [
                       {
                         "symbol": "Open"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "tie_break_method"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "RefundBoth"
                       }
                     ]
                   }
@@ -3150,6 +3176,18 @@
                 },
                 {
                   "key": {
+                    "symbol": "tie_break_method"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "RefundBoth"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "votes_for_client"
                   },
                   "val": {
@@ -3228,7 +3266,11 @@
                   "u64": 1
                 },
                 {
-                  "bool": false
+                  "vec": [
+                    {
+                      "symbol": "FreelancerWins"
+                    }
+                  ]
                 }
               ]
             }
@@ -3350,7 +3392,11 @@
                   "u64": 1
                 },
                 {
-                  "bool": false
+                  "vec": [
+                    {
+                      "symbol": "FreelancerWins"
+                    }
+                  ]
                 }
               ]
             }

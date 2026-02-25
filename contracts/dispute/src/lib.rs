@@ -629,8 +629,10 @@ impl DisputeContract {
             _ => DisputeResolution::Escalate,
         };
 
+        // Only invoke the escrow callback if the dispute has a concrete resolution.
+        // Escalated disputes are handled out-of-band and must not trigger a payout.
         if resolution != DisputeResolution::Escalate {
-            let _ = env.invoke_contract::<()>(
+            env.invoke_contract::<()>(
                 &escrow,
                 &Symbol::new(&env, "resolve_dispute_callback"),
                 vec![
@@ -639,6 +641,7 @@ impl DisputeContract {
                     resolution.into_val(&env),
                 ],
             );
+
         }
 
         env.storage()

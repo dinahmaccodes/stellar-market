@@ -263,7 +263,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           },
@@ -830,6 +831,18 @@
                         "vec": [
                           {
                             "symbol": "ResolvedForClient"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "tie_break_method"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "RefundBoth"
                           }
                         ]
                       }
@@ -2812,7 +2825,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           }
@@ -3236,7 +3250,11 @@
                   "u64": 1
                 },
                 {
-                  "bool": true
+                  "vec": [
+                    {
+                      "symbol": "ClientWins"
+                    }
+                  ]
                 }
               ]
             }
@@ -3358,7 +3376,11 @@
                   "u64": 1
                 },
                 {
-                  "bool": true
+                  "vec": [
+                    {
+                      "symbol": "ClientWins"
+                    }
+                  ]
                 }
               ]
             }

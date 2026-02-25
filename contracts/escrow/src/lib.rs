@@ -211,6 +211,9 @@ impl EscrowContract {
         Ok(())
     }
 
+    /// Called by the dispute contract to resolve a disputed job and distribute funds.
+    /// Uses the full DisputeResolution enum to correctly handle all four outcomes,
+    /// including the zero-remaining edge case where only the job status needs updating.
     pub fn resolve_dispute_callback(
         env: Env,
         job_id: u64,
@@ -239,6 +242,7 @@ impl EscrowContract {
         let remaining = job.total_amount - approved_amount;
 
         if remaining > 0 {
+            // Funds remain — transfer them according to the resolution outcome.
             let token_client = token::Client::new(&env, &job.token);
             match resolution {
                 DisputeResolution::ClientWins => {
@@ -266,11 +270,13 @@ impl EscrowContract {
                     job.status = JobStatus::Cancelled;
                 }
                 DisputeResolution::Escalate => {
-                    // No funds transferred, job remains Disputed or similar
-                    // In this contract we might just leave it as is
+                    // No funds transferred; job remains in its current disputed state
+                    // until a higher-level resolution process completes.
                 }
             }
         } else {
+            // All milestones were already paid out — only the job status needs updating.
+            // Use the same resolution mapping for consistency with the funds-present path.
             match resolution {
                 DisputeResolution::ClientWins | DisputeResolution::RefundBoth => {
                     job.status = JobStatus::Cancelled;
@@ -278,7 +284,9 @@ impl EscrowContract {
                 DisputeResolution::FreelancerWins => {
                     job.status = JobStatus::Completed;
                 }
-                DisputeResolution::Escalate => {}
+                DisputeResolution::Escalate => {
+                    // Leave status unchanged, same as above.
+                }
             }
         }
 

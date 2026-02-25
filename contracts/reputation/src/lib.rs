@@ -16,6 +16,9 @@ pub enum ReputationError {
     JobNotCompleted = 5,
     NotJobParticipant = 6,
     JobNotFound = 7,
+    Unauthorized = 8,
+    NotInitialized = 9,
+    InvalidDecayRate = 10,
 }
 
 #[contracttype]
@@ -64,6 +67,8 @@ enum DataKey {
     Reviews(Address),
     ReviewExists(Address, Address, u64),
     Badges(Address),
+    Admin,
+    DecayRate,
 }
 
 const MIN_TTL_THRESHOLD: u32 = 1_000;
@@ -99,6 +104,10 @@ fn bump_badges_ttl(env: &Env, user: &Address) {
         MIN_TTL_THRESHOLD,
         MIN_TTL_EXTEND_TO,
     );
+}
+
+fn bump_instance_ttl(env: &Env) {
+    env.storage().instance().extend_ttl(MIN_TTL_THRESHOLD, MIN_TTL_EXTEND_TO);
 }
 
 /// Calculate the reputation tier based on average rating score.
@@ -143,7 +152,7 @@ impl ReputationContract {
     ) -> Result<(), ReputationError> {
         reviewer.require_auth();
 
-        if rating < 1 || rating > 5 {
+        if !(1..=5).contains(&rating) {
             return Err(ReputationError::InvalidRating);
         }
         if reviewer == reviewee {
@@ -227,7 +236,7 @@ impl ReputationContract {
         bump_review_exists_ttl(&env, &reviewer, &reviewee, job_id);
 
         // Check for tier upgrade and award badge if necessary
-        let new_avg_rating = (reputation.total_score * 100) / reputation.total_weight;
+        let new_avg_rating = Self::get_average_rating(env.clone(), reviewee.clone()).unwrap_or(0);
         let new_tier = calculate_tier(new_avg_rating);
 
         // Get existing badges to check if this tier badge already exists
@@ -243,7 +252,7 @@ impl ReputationContract {
 
         if !has_tier_badge && new_tier != ReputationTier::None {
             let badge = Badge {
-                badge_type: new_tier.clone(),
+                badge_type: new_tier,
                 awarded_at: env.ledger().timestamp(),
             };
             badges.push_back(badge);
@@ -278,14 +287,98 @@ impl ReputationContract {
         Ok(reputation)
     }
 
-    /// Get the weighted average rating for a user (multiplied by 100 for precision).
-    /// e.g., a return value of 450 means 4.50 stars.
+    /// Initialize the reputation contract with an admin.
+    pub fn initialize(env: Env, admin: Address, decay_rate: u32) -> Result<(), ReputationError> {
+        if env.storage().instance().has(&DataKey::Admin) {
+            return Err(ReputationError::Unauthorized); // already initialized
+        }
+        if decay_rate > 100 {
+            return Err(ReputationError::InvalidDecayRate);
+        }
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().set(&DataKey::DecayRate, &decay_rate);
+        bump_instance_ttl(&env);
+        Ok(())
+    }
+
+    /// Set the decay rate for reviews (0-100 percentage per year).
+    pub fn set_decay_rate(env: Env, admin: Address, rate: u32) -> Result<(), ReputationError> {
+        admin.require_auth();
+        
+        let stored_admin: Address = env.storage().instance().get(&DataKey::Admin).ok_or(ReputationError::NotInitialized)?;
+        if admin != stored_admin {
+            return Err(ReputationError::Unauthorized);
+        }
+        
+        if rate > 100 {
+            return Err(ReputationError::InvalidDecayRate);
+        }
+        
+        env.storage().instance().set(&DataKey::DecayRate, &rate);
+        bump_instance_ttl(&env);
+        
+        // Emit event
+        env.events().publish(
+            (symbol_short!("reput"), symbol_short!("decay_rt")),
+            (admin, rate),
+        );
+        Ok(())
+    }
+
+    /// Calculate effective weight of a review, applying time decay.
+    /// Formula: effective_weight = stake_weight * max(0, 100 - decay_rate * age_in_seconds / ONE_YEAR) / 100
+    pub fn get_effective_weight(env: Env, review: Review, current_time: u64) -> i128 {
+        let decay_rate: u32 = env.storage().instance().get(&DataKey::DecayRate).unwrap_or(0);
+        
+        let initial_weight = if review.stake_weight > 0 {
+            review.stake_weight
+        } else {
+            1_i128
+        };
+        
+        if decay_rate == 0 {
+            return initial_weight;
+        }
+
+        let age_in_seconds = current_time.saturating_sub(review.timestamp);
+        let one_year_in_seconds = 31_536_000_u64;
+        
+        let decay_amount = (decay_rate as u64).saturating_mul(age_in_seconds) / one_year_in_seconds;
+        let decay_factor = 100_u64.saturating_sub(decay_amount);
+        
+        if decay_factor == 0 {
+            return 0;
+        }
+        
+        (initial_weight.saturating_mul(decay_factor as i128)) / 100
+    }
+
     pub fn get_average_rating(env: Env, user: Address) -> Result<u64, ReputationError> {
-        let rep = Self::get_reputation(env, user)?;
-        if rep.total_weight == 0 {
+        let reviews = Self::get_reviews(env.clone(), user.clone());
+        if reviews.is_empty() {
             return Ok(0);
         }
-        Ok((rep.total_score * 100) / rep.total_weight)
+        
+        let current_time = env.ledger().timestamp();
+        let mut total_score: u64 = 0;
+        let mut total_weight: u64 = 0;
+        
+        for review in reviews.iter() {
+            let effective_weight = Self::get_effective_weight(env.clone(), review.clone(), current_time);
+            let weight = if effective_weight > 0 {
+                effective_weight as u64
+            } else {
+                0
+            };
+            total_score += (review.rating as u64) * weight;
+            total_weight += weight;
+        }
+        
+        if total_weight == 0 {
+            return Ok(0); // If completely decayed, acts as no rep
+        }
+        
+        Ok((total_score * 100) / total_weight)
     }
 
     /// Get the total number of reviews for a user.

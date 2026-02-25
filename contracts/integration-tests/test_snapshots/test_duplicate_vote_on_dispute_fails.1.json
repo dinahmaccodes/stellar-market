@@ -171,7 +171,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           },
@@ -619,6 +620,18 @@
                         "vec": [
                           {
                             "symbol": "Voting"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "tie_break_method"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "RefundBoth"
                           }
                         ]
                       }
@@ -1817,7 +1830,8 @@
                 },
                 {
                   "u32": 3
-                }
+                },
+                "void"
               ]
             }
           }
