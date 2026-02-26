@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/Toast";
-import { User, Settings, Mail, FileText, Link as LinkIcon, Loader2 } from "lucide-react";
+import { User, Settings, Mail, FileText, Link as LinkIcon, Loader2, ShieldCheck, ShieldOff, Copy, Check } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -32,6 +32,19 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
 
+  // ─── 2FA State ──────────────────────────────────────────────────────────────
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+  const [twoFASetupData, setTwoFASetupData] = useState<{
+    qrCode: string;
+    secret: string;
+    backupCodes: string[];
+  } | null>(null);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [copiedBackup, setCopiedBackup] = useState(false);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !token) {
@@ -54,6 +67,7 @@ export default function SettingsPage() {
         setBio(data.bio || "");
         setAvatarUrl(data.avatarUrl || "");
         setRole(data.role || "FREELANCER");
+        setTwoFAEnabled(data.twoFactorEnabled || false);
       } catch {
         toast.error("Failed to load profile data.");
       } finally {
@@ -133,6 +147,64 @@ export default function SettingsPage() {
         <Loader2 size={32} className="animate-spin text-stellar-blue" />
       </div>
     );
+  }
+
+  async function handleSetup2FA() {
+    setTwoFALoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/auth/2fa/setup`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTwoFASetupData(res.data);
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      toast.error(error.response?.data?.error || "Failed to setup 2FA.");
+    } finally {
+      setTwoFALoading(false);
+    }
+  }
+
+  async function handleVerify2FA(e: React.FormEvent) {
+    e.preventDefault();
+    setTwoFALoading(true);
+    try {
+      await axios.post(`${API_URL}/auth/2fa/verify`, { code: verifyCode }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTwoFAEnabled(true);
+      setTwoFASetupData(null);
+      setVerifyCode("");
+      toast.success("2FA has been enabled successfully!");
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      toast.error(error.response?.data?.error || "Invalid verification code.");
+    } finally {
+      setTwoFALoading(false);
+    }
+  }
+
+  async function handleDisable2FA(e: React.FormEvent) {
+    e.preventDefault();
+    setTwoFALoading(true);
+    try {
+      await axios.post(`${API_URL}/auth/2fa/disable`, { password: disablePassword }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTwoFAEnabled(false);
+      setShowDisableModal(false);
+      setDisablePassword("");
+      toast.success("2FA has been disabled.");
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      toast.error(error.response?.data?.error || "Failed to disable 2FA.");
+    } finally {
+      setTwoFALoading(false);
+    }
+  }
+
+  function copyBackupCodes() {
+    if (twoFASetupData) {
+      navigator.clipboard.writeText(twoFASetupData.backupCodes.join("\n"));
+      setCopiedBackup(true);
+      setTimeout(() => setCopiedBackup(false), 2000);
+    }
   }
 
   if (!user) return null;
@@ -322,6 +394,156 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+
+        {/* Security — Two-Factor Authentication */}
+        <div className="card space-y-6 mt-8">
+          <h2 className="text-xl font-semibold text-dark-heading flex items-center gap-2">
+            <ShieldCheck size={20} />
+            Security
+          </h2>
+
+          {twoFAEnabled && !twoFASetupData ? (
+            /* 2FA is ON */
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-green-900/20 border border-green-700/30 rounded-lg">
+                <ShieldCheck size={20} className="text-green-400" />
+                <p className="text-green-300 text-sm">Two-factor authentication is enabled.</p>
+              </div>
+
+              {showDisableModal ? (
+                <form onSubmit={handleDisable2FA} className="space-y-3">
+                  <p className="text-dark-muted text-sm">Enter your password to disable 2FA:</p>
+                  <input
+                    type="password"
+                    value={disablePassword}
+                    onChange={(e) => setDisablePassword(e.target.value)}
+                    className="input-field"
+                    placeholder="Your password"
+                    required
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={twoFALoading}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      {twoFALoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldOff size={14} />}
+                      Confirm Disable
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowDisableModal(false); setDisablePassword(""); }}
+                      className="px-4 py-2 border border-dark-border text-dark-text rounded-lg text-sm hover:bg-dark-bg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowDisableModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 border border-red-600/50 text-red-400 rounded-lg text-sm hover:bg-red-900/20 transition-colors"
+                >
+                  <ShieldOff size={14} />
+                  Disable 2FA
+                </button>
+              )}
+            </div>
+          ) : twoFASetupData ? (
+            /* Setup in progress */
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className="text-dark-muted text-sm mb-4">
+                  Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                </p>
+                <img
+                  src={twoFASetupData.qrCode}
+                  alt="2FA QR Code"
+                  className="mx-auto w-48 h-48 rounded-lg border border-dark-border"
+                />
+              </div>
+
+              <div>
+                <p className="text-dark-muted text-xs mb-1">Manual entry key:</p>
+                <code className="block p-2 bg-dark-bg border border-dark-border rounded text-sm text-dark-text break-all">
+                  {twoFASetupData.secret}
+                </code>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-dark-muted text-xs">Backup codes (save these securely):</p>
+                  <button
+                    type="button"
+                    onClick={copyBackupCodes}
+                    className="flex items-center gap-1 text-xs text-stellar-blue hover:underline"
+                  >
+                    {copiedBackup ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedBackup ? "Copied!" : "Copy all"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {twoFASetupData.backupCodes.map((code, i) => (
+                    <code
+                      key={i}
+                      className="block p-2 bg-dark-bg border border-dark-border rounded text-center text-sm text-dark-text font-mono"
+                    >
+                      {code}
+                    </code>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleVerify2FA} className="space-y-3">
+                <label className="block text-sm font-medium text-dark-heading">
+                  Enter a code from your authenticator app to verify:
+                </label>
+                <input
+                  type="text"
+                  value={verifyCode}
+                  onChange={(e) => setVerifyCode(e.target.value)}
+                  className="input-field text-center tracking-widest"
+                  placeholder="000000"
+                  maxLength={6}
+                  required
+                  autoComplete="one-time-code"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={twoFALoading || verifyCode.length !== 6}
+                    className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {twoFALoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                    Verify &amp; Enable
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setTwoFASetupData(null); setVerifyCode(""); }}
+                    className="px-4 py-2 border border-dark-border text-dark-text rounded-lg text-sm hover:bg-dark-bg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            /* 2FA is OFF */
+            <div className="space-y-4">
+              <p className="text-dark-muted text-sm">
+                Add an extra layer of security to your account by enabling two-factor authentication with an authenticator app.
+              </p>
+              <button
+                onClick={handleSetup2FA}
+                disabled={twoFALoading}
+                className="btn-primary flex items-center gap-2 disabled:opacity-50"
+              >
+                {twoFALoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                Enable 2FA
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -49,6 +49,7 @@ app.get("/health", (_req, res) => {
 // Rate limiting
 app.use("/api/auth/login", authRateLimiter);
 app.use("/api/auth/register", authRateLimiter);
+app.use("/api/auth/2fa/validate", authRateLimiter);
 app.use("/api/auth/forgot-password", forgotPasswordRateLimiter);
 app.use("/api", apiRateLimiter);
 

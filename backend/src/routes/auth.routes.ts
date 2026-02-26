@@ -2,16 +2,23 @@ import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { generateSecret, generateSync, verifySync, generateURI } from "otplib";
+import QRCode from "qrcode";
 import { config } from "../config";
 import { validate } from "../middleware/validation";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { asyncHandler } from "../middleware/error";
+import { encrypt, decrypt } from "../utils/encryption";
 import {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailParamSchema,
+  twoFactorVerifySchema,
+  twoFactorDisableSchema,
+  twoFactorValidateSchema,
 } from "../schemas";
 import { generateToken, hashToken } from "../utils/token";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/email";
@@ -167,6 +174,15 @@ router.post(
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
+    if (user.twoFactorEnabled) {
+      const tempToken = jwt.sign(
+        { userId: user.id, purpose: "2fa_pending" },
+        config.jwtSecret,
+        { expiresIn: "5m" },
+      );
+      return res.json({ requiresTwoFactor: true, tempToken });
+    }
+
     const token = jwt.sign({ userId: user.id }, config.jwtSecret, {
       expiresIn: "7d",
     });
@@ -183,6 +199,209 @@ router.post(
     });
   }),
 );
+
+// ─── 2FA Endpoints ──────────────────────────────────────────────────────────
+
+// POST /2fa/setup — Generate TOTP secret and QR code
+router.post(
+  "/2fa/setup",
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ error: "2FA is already enabled." });
+    }
+
+    const secret = generateSecret();
+    const encryptedSecret = encrypt(secret);
+
+    // Generate 8 backup codes
+    const backupCodesPlain: string[] = [];
+    const backupCodesHashed: string[] = [];
+    for (let i = 0; i < 8; i++) {
+      const code = crypto.randomBytes(4).toString("hex"); // 8-char hex code
+      backupCodesPlain.push(code);
+      backupCodesHashed.push(await bcrypt.hash(code, 10));
+    }
+
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        twoFactorSecret: encryptedSecret,
+        backupCodes: backupCodesHashed,
+      },
+    });
+
+    const otpAuthUrl = generateURI({
+      strategy: "totp",
+      secret,
+      issuer: "StellarMarket",
+      label: user.email || user.username,
+    });
+    const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
+
+    res.json({
+      qrCode: qrCodeDataUrl,
+      secret,
+      backupCodes: backupCodesPlain,
+    });
+  }),
+);
+
+// POST /2fa/verify — Verify TOTP code and enable 2FA
+router.post(
+  "/2fa/verify",
+  authenticate,
+  validate({ body: twoFactorVerifySchema }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ error: "2FA is already enabled." });
+    }
+
+    if (!user.twoFactorSecret) {
+      return res.status(400).json({ error: "2FA setup not initiated. Call /2fa/setup first." });
+    }
+
+    const secret = decrypt(user.twoFactorSecret);
+    const result = verifySync({ token: req.body.code, secret });
+
+    if (!result.valid) {
+      return res.status(400).json({ error: "Invalid verification code." });
+    }
+
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { twoFactorEnabled: true },
+    });
+
+    res.json({ message: "2FA has been enabled successfully." });
+  }),
+);
+
+// POST /2fa/disable — Disable 2FA (requires password)
+router.post(
+  "/2fa/disable",
+  authenticate,
+  validate({ body: twoFactorDisableSchema }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({ error: "2FA is not enabled." });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({ error: "Password not set for this account." });
+    }
+
+    const validPassword = await bcrypt.compare(req.body.password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid password." });
+    }
+
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        twoFactorSecret: null,
+        twoFactorEnabled: false,
+        backupCodes: [],
+      },
+    });
+
+    res.json({ message: "2FA has been disabled." });
+  }),
+);
+
+// POST /2fa/validate — Validate TOTP or backup code during login
+router.post(
+  "/2fa/validate",
+  validate({ body: twoFactorValidateSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { code, tempToken } = req.body;
+
+    let decoded: { userId: string; purpose?: string };
+    try {
+      decoded = jwt.verify(tempToken, config.jwtSecret) as { userId: string; purpose?: string };
+    } catch {
+      return res.status(401).json({ error: "Invalid or expired temporary token." });
+    }
+
+    if (decoded.purpose !== "2fa_pending") {
+      return res.status(401).json({ error: "Invalid token type." });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+      return res.status(401).json({ error: "Invalid request." });
+    }
+
+    const secret = decrypt(user.twoFactorSecret);
+
+    // Try TOTP code first (6-digit)
+    if (/^\d{6}$/.test(code)) {
+      const result = verifySync({ token: code, secret });
+      if (result.valid) {
+        const token = jwt.sign({ userId: user.id }, config.jwtSecret, {
+          expiresIn: "7d",
+        });
+        return res.json({
+          user: {
+            id: user.id,
+            walletAddress: user.walletAddress,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+          },
+          token,
+        });
+      }
+    }
+
+    // Try backup codes
+    for (let i = 0; i < user.backupCodes.length; i++) {
+      const match = await bcrypt.compare(code, user.backupCodes[i]);
+      if (match) {
+        // Consume the backup code
+        const updatedCodes = [...user.backupCodes];
+        updatedCodes.splice(i, 1);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { backupCodes: updatedCodes },
+        });
+
+        const token = jwt.sign({ userId: user.id }, config.jwtSecret, {
+          expiresIn: "7d",
+        });
+        return res.json({
+          user: {
+            id: user.id,
+            walletAddress: user.walletAddress,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+          },
+          token,
+        });
+      }
+    }
+
+    return res.status(401).json({ error: "Invalid verification code." });
+  }),
+);
+
+// ─── Password Reset & Email Verification ────────────────────────────────────
 
 // Forgot password — generates hashed reset token, sends email
 router.post(

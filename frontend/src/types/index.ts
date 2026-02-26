@@ -6,6 +6,7 @@ export interface User {
   bio?: string;
   avatarUrl?: string;
   role: "CLIENT" | "FREELANCER";
+  twoFactorEnabled?: boolean;
   skills?: string[];
   averageRating?: number;
   reviewCount?: number;
