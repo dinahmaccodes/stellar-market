@@ -13,12 +13,12 @@ router.use(requireAdmin);
 // POST /api/admin/jobs/:id/flag - Flag a job with reason
 router.post("/jobs/:id/flag", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
         const validatedData = flagJobSchema.parse(req.body);
 
         // Check if job exists
         const job = await prisma.job.findUnique({
-            where: { id },
+            where: { id: id as string },
         });
 
         if (!job) {
@@ -28,7 +28,7 @@ router.post("/jobs/:id/flag", async (req: AuthRequest, res: Response): Promise<v
 
         // Update job with flag
         const updatedJob = await prisma.job.update({
-            where: { id },
+            where: { id: id as string },
             data: {
                 isFlagged: true,
                 flagReason: validatedData.flagReason,
@@ -54,11 +54,11 @@ router.post("/jobs/:id/flag", async (req: AuthRequest, res: Response): Promise<v
 // POST /api/admin/jobs/:id/dismiss - Remove flag from job
 router.post("/jobs/:id/dismiss", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
 
         // Check if job exists
         const job = await prisma.job.findUnique({
-            where: { id },
+            where: { id: id as string },
         });
 
         if (!job) {
@@ -68,7 +68,7 @@ router.post("/jobs/:id/dismiss", async (req: AuthRequest, res: Response): Promis
 
         // Remove flag from job
         const updatedJob = await prisma.job.update({
-            where: { id },
+            where: { id: id as string },
             data: {
                 isFlagged: false,
                 flagReason: null,
@@ -90,11 +90,11 @@ router.post("/jobs/:id/dismiss", async (req: AuthRequest, res: Response): Promis
 // POST /api/admin/jobs/:id/remove - Remove/unpublish a job
 router.post("/jobs/:id/remove", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
 
         // Check if job exists
         const job = await prisma.job.findUnique({
-            where: { id },
+            where: { id: id as string },
         });
 
         if (!job) {
@@ -104,7 +104,7 @@ router.post("/jobs/:id/remove", async (req: AuthRequest, res: Response): Promise
 
         // Delete the job
         await prisma.job.delete({
-            where: { id },
+            where: { id: id as string },
         });
 
         res.json({
@@ -119,12 +119,12 @@ router.post("/jobs/:id/remove", async (req: AuthRequest, res: Response): Promise
 // POST /api/admin/users/:id/suspend - Suspend a user account
 router.post("/users/:id/suspend", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
         const validatedData = suspendUserSchema.parse(req.body);
 
         // Check if user exists
         const user = await prisma.user.findUnique({
-            where: { id },
+            where: { id: id as string },
         });
 
         if (!user) {
@@ -134,7 +134,7 @@ router.post("/users/:id/suspend", async (req: AuthRequest, res: Response): Promi
 
         // Suspend the user
         const updatedUser = await prisma.user.update({
-            where: { id },
+            where: { id: id as string },
             data: {
                 isSuspended: true,
                 suspendReason: validatedData.suspendReason,
@@ -163,11 +163,11 @@ router.post("/users/:id/suspend", async (req: AuthRequest, res: Response): Promi
 // POST /api/admin/users/:id/restore - Restore a suspended user account
 router.post("/users/:id/restore", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
 
         // Check if user exists
         const user = await prisma.user.findUnique({
-            where: { id },
+            where: { id: id as string },
         });
 
         if (!user) {
@@ -177,7 +177,7 @@ router.post("/users/:id/restore", async (req: AuthRequest, res: Response): Promi
 
         // Restore the user
         const updatedUser = await prisma.user.update({
-            where: { id },
+            where: { id: id as string },
             data: {
                 isSuspended: false,
                 suspendReason: null,
