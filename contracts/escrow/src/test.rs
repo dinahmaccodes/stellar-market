@@ -233,7 +233,7 @@ fn test_extend_deadline() {
 
 // ── Helpers for claim_refund tests ───────────────────────────────────────────
 
-fn setup_refund_env(env: &Env) -> (EscrowContractClient, Address) {
+fn setup_refund_env(env: &Env) -> (EscrowContractClient<'_>, Address) {
     env.mock_all_auths();
     env.ledger().with_mut(|l| l.timestamp = 1000);
 
@@ -823,5 +823,129 @@ fn test_approve_milestones_batch_non_existent_index() {
     // Try to approve non-existent milestone index
     let indices = vec![&env, 99_u32]; // Non-existent index
     let result = escrow.try_approve_milestones_batch(&job_id, &indices, &client);
+    assert!(result.is_err());
+}
+
+// ── Protocol Fee and Treasury Tests ───────────────────────────────────────────
+
+#[test]
+fn test_initialize_and_admin_controls() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register_contract(None, EscrowContract);
+    let escrow = EscrowContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let fee_bps = 250; // 2.5%
+
+    // Initialize
+    escrow.initialize(&admin, &treasury, &fee_bps);
+
+    // Initialized twice should fail
+    let result = escrow.try_initialize(&admin, &treasury, &fee_bps);
+    assert!(result.is_err());
+
+    // Update fee (admin)
+    escrow.set_fee_bps(&500);
+    // Update treasury (admin)
+    let new_treasury = Address::generate(&env);
+    escrow.set_treasury(&new_treasury);
+}
+
+#[test]
+fn test_fee_deduction_single_approval() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|l| l.timestamp = 1000);
+
+    let contract_id = env.register_contract(None, EscrowContract);
+    let escrow = EscrowContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let fee_bps = 500; // 5%
+    escrow.initialize(&admin, &treasury, &fee_bps);
+
+    let token_admin = Address::generate(&env);
+    let token = env.register_stellar_asset_contract(token_admin.clone());
+    let client_addr = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+
+    let milestones = vec![&env, (String::from_str(&env, "Task 1"), 1000_i128, 2000_u64)];
+    let job_id = escrow.create_job(&client_addr, &freelancer, &token, &milestones, &3000_u64, &GRACE_PERIOD);
+
+    mint_tokens(&env, &token, &client_addr, 1000);
+    escrow.fund_job(&job_id, &client_addr);
+
+    escrow.submit_milestone(&job_id, &0, &freelancer);
+    escrow.approve_milestone(&job_id, &0, &client_addr);
+
+    let token_client = token::Client::new(&env, &token);
+    // 5% of 1000 is 50
+    assert_eq!(token_client.balance(&treasury), 50);
+    // Freelancer gets 950
+    assert_eq!(token_client.balance(&freelancer), 950);
+}
+
+#[test]
+fn test_fee_deduction_batch_approval() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|l| l.timestamp = 1000);
+
+    let contract_id = env.register_contract(None, EscrowContract);
+    let escrow = EscrowContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let fee_bps = 1000; // 10% (max)
+    escrow.initialize(&admin, &treasury, &fee_bps);
+
+    let token_admin = Address::generate(&env);
+    let token = env.register_stellar_asset_contract(token_admin.clone());
+    let client_addr = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+
+    let milestones = vec![
+        &env,
+        (String::from_str(&env, "T1"), 1000_i128, 2000_u64),
+        (String::from_str(&env, "T2"), 2000_i128, 3000_u64),
+    ];
+    let job_id = escrow.create_job(&client_addr, &freelancer, &token, &milestones, &5000_u64, &GRACE_PERIOD);
+
+    mint_tokens(&env, &token, &client_addr, 3000);
+    escrow.fund_job(&job_id, &client_addr);
+
+    escrow.submit_milestone(&job_id, &0, &freelancer);
+    escrow.submit_milestone(&job_id, &1, &freelancer);
+
+    let indices = vec![&env, 0_u32, 1_u32];
+    escrow.approve_milestones_batch(&job_id, &indices, &client_addr);
+
+    let token_client = token::Client::new(&env, &token);
+    // 10% of 3000 is 300
+    assert_eq!(token_client.balance(&treasury), 300);
+    // Freelancer gets 2700
+    assert_eq!(token_client.balance(&freelancer), 2700);
+}
+
+#[test]
+fn test_fee_cap_enforcement() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register_contract(None, EscrowContract);
+    let escrow = EscrowContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    // Should fail if > 10% during initialize
+    let result = escrow.try_initialize(&admin, &treasury, &1001);
+    assert!(result.is_err());
+
+    // Should fail if > 10% during update
+    escrow.initialize(&admin, &treasury, &0);
+    let result = escrow.try_set_fee_bps(&1001);
     assert!(result.is_err());
 }
