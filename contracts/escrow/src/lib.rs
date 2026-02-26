@@ -21,6 +21,8 @@ pub enum EscrowError {
     NoRefundDue = 10,
     GracePeriodNotMet = 11,
     InvalidMilestoneIndex = 12,
+    TokenNotAllowed = 13,
+    AlreadyInitialized = 14,
 }
 
 #[contracttype]
