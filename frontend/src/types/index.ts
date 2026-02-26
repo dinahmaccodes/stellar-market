@@ -6,6 +6,7 @@ export interface User {
   bio?: string;
   avatarUrl?: string;
   role: "CLIENT" | "FREELANCER";
+  skills?: string[];
   averageRating?: number;
   reviewCount?: number;
 }
@@ -28,6 +29,8 @@ export interface Job {
   description: string;
   budget: number;
   category: string;
+  skills: string[];
+  deadline: string;
   status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "DISPUTED";
   client: User;
   freelancer?: User;
@@ -36,6 +39,10 @@ export interface Job {
   escrowStatus: "UNFUNDED" | "FUNDED" | "COMPLETED" | "CANCELLED" | "DISPUTED";
   createdAt: string;
   _count?: { applications: number };
+}
+
+export interface RecommendedJob extends Job {
+  relevanceScore: number;
 }
 
 export interface Application {

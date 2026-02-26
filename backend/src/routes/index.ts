@@ -12,12 +12,14 @@ import transactionRoutes from "./transaction.routes";
 import uploadRoutes from "./upload.routes";
 import adminRoutes from "./admin";
 import disputeRoutes from "./dispute.routes";
+import recommendationRoutes from "./recommendation.routes";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/jobs/recommended", recommendationRoutes);
 router.use("/jobs", jobRoutes);
 router.use("/", applicationRoutes);
 router.use("/", milestoneRoutes);
