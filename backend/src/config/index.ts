@@ -7,6 +7,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || "default-secret-change-me",
   databaseUrl: process.env.DATABASE_URL,
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+  encryptionKey: process.env.ENCRYPTION_KEY || "",
   stellar: {
     networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || "Test SDF Network ; September 2015",
     rpcUrl: process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org",

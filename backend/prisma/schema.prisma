@@ -78,6 +78,9 @@ model User {
   bio           String?
   avatarUrl     String?
   role                   UserRole  @default(FREELANCER)
+  twoFactorSecret        String?
+  twoFactorEnabled       Boolean   @default(false)
+  backupCodes            String[]
   emailVerified          Boolean   @default(false)
   emailVerificationToken String?
   passwordResetToken     String?
