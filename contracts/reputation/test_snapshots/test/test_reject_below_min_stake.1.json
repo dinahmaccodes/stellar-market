@@ -134,18 +134,18 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "u64": 99
+                  "u64": 1
                 },
                 {
                   "u32": 5
                 },
                 {
-                  "string": "Does not exist"
+                  "string": "Sneaky low stake"
                 },
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 1
+                    "lo": 9999999
                   }
                 }
               ]
@@ -242,18 +242,18 @@
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                     },
                     {
-                      "u64": 99
+                      "u64": 1
                     },
                     {
                       "u32": 5
                     },
                     {
-                      "string": "Does not exist"
+                      "string": "Sneaky low stake"
                     },
                     {
                       "i128": {
                         "hi": 0,
-                        "lo": 1
+                        "lo": 9999999
                       }
                     }
                   ]

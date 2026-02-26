@@ -93,6 +93,7 @@ model User {
   transactionsTo   Transaction[] @relation("TransactionsTo")
   attachments      Attachment[]
   notifications    Notification[]
+  auditLogs      AuditLog[]
 }
 
 model Job {
@@ -123,6 +124,7 @@ model Job {
   reviews      Review[]
   transactions Transaction[]
   attachments  Attachment[]
+  dispute      Dispute?
 }
 
 model Milestone {
@@ -227,6 +229,7 @@ model Attachment {
 
   uploader User  @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
   job      Job?  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  dispute  Dispute? @relation(fields: [disputeId], references: [id])
 
   @@index([uploaderId])
   @@index([jobId])
@@ -248,4 +251,38 @@ model Notification {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  target    String
+  metadata  Json?
+  timestamp DateTime @default(now())
+
+  admin     User     @relation(fields: [adminId], references: [id])
+}
+
+enum DisputeStatus {
+  PENDING
+  REVIEWING
+  RESOLVED_FOR_CLIENT
+  RESOLVED_FOR_FREELANCER
+  OVERRIDDEN_BY_ADMIN
+}
+
+model Dispute {
+  id            String         @id @default(cuid())
+  jobId         String         @unique
+  status        DisputeStatus  @default(PENDING)
+  reason        String
+  escalated     Boolean        @default(false)
+  outcome       String?
+  resolvedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
 }
